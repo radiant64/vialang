@@ -13,7 +13,7 @@ enum via_routines {
     VIA_EVAL_PROC = 0,
     VIA_EVAL_COMPOUND_PROC = 0x20,
     VIA_LOOKUP_PROC = 0x60,
-    VIA_LOOKUP_FORM_PROC = 0x61,
+    VIA_LOOKUP_FORM_PROC = 0x62,
     VIA_APPLY_PROC = 0x80
 };
 
@@ -75,7 +75,11 @@ void via_apply(struct via_vm* vm);
 
 void via_env_lookup(struct via_vm* vm);
 
-void via_env_set(struct via_vm* vm, struct via_value* sym, struct via_value* v);
+void via_env_set(
+    struct via_vm* vm,
+    struct via_value* symbol,
+    struct via_value* value
+);
 
 void via_lookup_form(struct via_vm* vm);
 

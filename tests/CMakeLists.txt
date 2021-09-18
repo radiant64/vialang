@@ -6,6 +6,6 @@ macro(create_test_target TEST)
     add_test(NAME ${TEST} COMMAND ${TEST})
 endmacro()
 
-
 create_test_target(test_opcodes test_opcodes.c)
+create_test_target(test_eval test_eval.c)
 

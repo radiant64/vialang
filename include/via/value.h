@@ -8,6 +8,7 @@ extern "C" {
 
 enum via_type {
     VIA_V_INVALID,
+    VIA_V_UNDEFINED,
     VIA_V_NIL,
     VIA_V_OP,
     VIA_V_INT,

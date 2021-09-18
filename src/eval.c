@@ -5,7 +5,6 @@
 
 static const via_int via_eval_prg_impl[] = {
     _LOADEXPR(),
-    _CAR(),
 
     // Check if the value is a compound expression; if true return the result
     // of a compound evaluation.
