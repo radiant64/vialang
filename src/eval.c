@@ -3,7 +3,7 @@
 #include <via/asm_macros.h>
 #include <via/vm.h>
 
-const via_int via_eval_prg[] = {
+static const via_int via_eval_prg_impl[] = {
     _LOADEXPR(),
     _CAR(),
 
@@ -31,9 +31,10 @@ const via_int via_eval_prg[] = {
     _SETRET(),
     _RETURN()
 };
-const size_t via_eval_prg_size = sizeof(via_eval_prg);
+const via_int* via_eval_prg = via_eval_prg_impl;
+const size_t via_eval_prg_size = sizeof(via_eval_prg_impl);
 
-const via_int via_eval_compound_prg[] = {
+static const via_int via_eval_compound_prg_impl[] = {
     _LOADEXPR(),
     _CAR(),
 
@@ -84,5 +85,6 @@ const via_int via_eval_compound_prg[] = {
     // formals and execute, replacing the current stack frame.
     _CALL(VIA_APPLY_PROC)
 };
-const size_t via_eval_compound_prg_size = sizeof(via_eval_compound_prg);
+const via_int* via_eval_compound_prg = via_eval_compound_prg_impl;
+const size_t via_eval_compound_prg_size = sizeof(via_eval_compound_prg_impl);
 

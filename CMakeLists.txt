@@ -13,4 +13,5 @@ enable_testing()
 set(CMAKE_C_STANDARD_REQUIRED 1)
 
 add_subdirectory(src)
+add_subdirectory(tests)
 

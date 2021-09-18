@@ -154,12 +154,16 @@ struct via_value* via_make_value(struct via_vm* vm) {
         segment = segment->next;
     }
 
-    for (size_t i = 0; segment->values[i].type != VIA_V_INVALID; ++i) {
-        struct via_value* val = &segment->values[i];
-        val->type = VIA_V_NIL;
-        segment->count++;
-        return val;
+    size_t i;
+    for (i = 0; segment->values[i].type != VIA_V_INVALID; ++i) {
     }
+
+    struct via_value* val = &segment->values[i];
+    val->type = VIA_V_NIL;
+    val->v_car = NULL;
+    val->v_cdr = NULL;
+    segment->count++;
+    return val;
 }
 
 void via_free_vm(struct via_vm* vm) {
@@ -189,13 +193,21 @@ struct via_value* via_make_frame(struct via_vm* vm) {
     frame->v_array[VIA_REG_PC]->v_int = vm->regs[VIA_REG_PC]->v_int;
     for (size_t i = 1; i < VIA_REG_COUNT; ++i) {
         struct via_value** fval = &frame->v_array[i];
-        if (!*fval) {
-            return NULL;
-        }
         *fval = vm->regs[i];
     }
 
     return frame;
+}
+
+struct via_value* via_make_env(struct via_vm* vm) {
+    struct via_value* env = via_make_value(vm);
+
+    env->type = VIA_V_PAIR;
+    env->v_car = vm->regs[VIA_REG_ENV];
+    env->v_cdr = via_make_value(vm);
+    env->v_cdr->type = VIA_V_PAIR;
+    
+    return env;
 }
 
 void via_assume_frame(struct via_vm* vm) {
@@ -213,7 +225,7 @@ via_int via_bind(struct via_vm* vm, void(*func)(struct via_vm*)) {
 
     const via_int routine = vm->write_cursor++;
     vm->program[routine] = _CALLB(index);
-    return routine;
+    return index;
 };
 
 void via_apply(struct via_vm* vm) {
@@ -265,10 +277,10 @@ process_state:
         break;
     case VIA_OP_CALL:
         vm->regs[VIA_REG_PC]->v_int = op >> 8;
-        break;
+        goto process_state;
     case VIA_OP_CALLA:
         vm->regs[VIA_REG_PC]->v_int = vm->acc->v_int;
-        break;
+        goto process_state;
     case VIA_OP_CALLB:
         old_pc = vm->regs[VIA_REG_PC]->v_int;
         vm->bound[op >> 8](vm);
@@ -314,8 +326,11 @@ process_state:
         vm->regs[VIA_REG_PC]->v_int += (op >> 8);
         break;
     case VIA_OP_SNAP:
-        vm->acc = via_make_frame(vm);
-        vm->acc->v_array[VIA_REG_PC]->v_int += (op >> 8);
+        val = via_make_frame(vm);
+        // Always skip ahead one instruction, to maintain consistency with
+        // SKIPZ and JMP.
+        val->v_array[VIA_REG_PC]->v_int += (op >> 8) + 1;
+        STACK_PUSH(vm, val);
         break;
     case VIA_OP_RETURN:
         if (!vm->stack_top) {
@@ -325,7 +340,7 @@ process_state:
         via_assume_frame(vm);
         goto process_state;
     case VIA_OP_JMP:
-        vm->regs[VIA_REG_PC] += (op >> 8);
+        vm->regs[VIA_REG_PC]->v_int += (op >> 8);
         goto process_state;
     case VIA_OP_PUSH:
         STACK_PUSH(vm, vm->acc);
@@ -349,6 +364,7 @@ process_state:
         break;
     }
 
+    (vm->regs[VIA_REG_PC]->v_int)++;
     goto process_state;
 }
 

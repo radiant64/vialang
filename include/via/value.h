@@ -55,11 +55,11 @@ struct via_value {
         via_bool v_bool;
         const char* v_string;
         const char* v_symbol;
-        union {
+        struct {
             struct via_value* v_car;
             struct via_value* v_cdr;
         };
-        union {
+        struct {
             via_int v_size;
             struct via_value** v_array;
         };
