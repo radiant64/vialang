@@ -7,18 +7,18 @@ static const via_int via_eval_prg_impl[] = {
     _LOADEXPR(),
 
     // Check if the value is a compound expression; if true return the result
-    // of a compound evaluation.
+    // of a compound evaluation, replacing the current frame.
     _PUSH(),
     _PAIRP(),
     _SKIPZ(3),
         _POP(),
         _SETEXPR(),
-        // Evaluate the form, replacing the current stack frame.
+        // Evaluate the form.
         _CALL(VIA_EVAL_COMPOUND_PROC),
     _POP(),
 
     // Check if the value is a symbol; if true return the lookup result,
-    // replacing the current stack frame.
+    // replacing the current frame.
     _PUSH(),
     _SYMBOLP(),
     _SKIPZ(2),
@@ -53,7 +53,7 @@ static const via_int via_eval_compound_prg_impl[] = {
         // form routine, replacing the current stack frame.
         _SKIPZ(1),
             _CALLA(),
-    _DROP(),
+    _POP(),
 
     // Regular form; procedure application.
     // Start out by evaluating the procedure value.

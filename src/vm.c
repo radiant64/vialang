@@ -5,6 +5,7 @@
 #include <via/asm_macros.h>
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 #define SEGMENT_SIZE 32
@@ -251,7 +252,7 @@ void via_apply(struct via_vm* vm) {
     struct via_value* formals = proc->v_cdr->v_car;
     vm->acc = proc->v_cdr->v_cdr->v_car;
     vm->regs[VIA_REG_ENV] = via_make_env(vm);
-    
+
     while (args) {
         via_env_set(vm, formals->v_car, args->v_car);
         args = args->v_cdr;
@@ -417,7 +418,7 @@ process_state:
         vm->acc = val;
         break;
     case VIA_OP_SKIPZ:
-        if (vm->acc->v_bool) {
+        if (vm->acc && vm->acc->v_bool) {
             break;
         }
         vm->regs[VIA_REG_PC]->v_int += (op >> 8);
