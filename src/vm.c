@@ -90,6 +90,13 @@ void via_add_core_routines(struct via_vm* vm) {
     vm->program[VIA_APPLY_PROC + 1] = _RETURN();
 }
 
+static struct via_value* via_make_core_forms(struct via_vm* vm) {
+    struct via_value* forms = via_make_value(vm);
+    forms->type = VIA_V_PAIR;
+
+    return forms;
+}
+
 struct via_vm* via_create_vm() {
     struct via_vm* vm = via_calloc(1, sizeof(struct via_vm));
     if (vm) {
@@ -125,6 +132,8 @@ struct via_vm* via_create_vm() {
         vm->regs[VIA_REG_ENV] = via_make_env(vm);
 
         via_add_core_routines(vm);
+        
+        vm->forms = via_make_core_forms(vm);
     }
 
     return vm;
@@ -301,6 +310,45 @@ void via_env_set(
 }
 
 void via_lookup_form(struct via_vm* vm) {
+    struct via_value* cursor = vm->forms;
+    if (cursor->v_cdr) {
+        do {
+            cursor = cursor->v_cdr;
+            if (cursor->v_car->v_car == vm->acc) {
+                vm->ret = cursor->v_car->v_cdr;
+                return;
+            }
+        } while (cursor->v_cdr);
+    }
+
+    vm->ret = NULL;
+}
+
+void via_set_form(
+    struct via_vm* vm,
+    struct via_value* symbol,
+    struct via_value* definition
+) {
+    struct via_value* cursor = vm->forms;
+    via_bool found = false;
+    if (cursor->v_cdr) {
+        do {
+            cursor = cursor->v_cdr;
+            if (cursor->v_car->v_car == symbol) {
+                found = true;
+            }
+        } while (!found && cursor->v_cdr);
+    } 
+    if (!found) {
+        cursor->v_cdr = via_make_value(vm);
+        cursor = cursor->v_cdr;
+        cursor->type = VIA_V_PAIR;
+    }
+
+    cursor->v_car = via_make_value(vm);
+    cursor->v_car->type = VIA_V_PAIR;
+    cursor->v_car->v_car = symbol;
+    cursor->v_car->v_cdr = definition;
 }
 
 struct via_value* via_run(struct via_vm* vm) {

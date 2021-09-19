@@ -42,6 +42,8 @@ struct via_vm {
     size_t write_cursor;
     size_t program_cap;
 
+    struct via_value* forms;
+
     void(**bound)(struct via_vm*);
     size_t num_bound;
     size_t bound_cap;
@@ -82,6 +84,12 @@ void via_env_set(
 );
 
 void via_lookup_form(struct via_vm* vm);
+
+void via_set_form(
+    struct via_vm* vm,
+    struct via_value* symbol,
+    struct via_value* definition
+);
 
 struct via_value* via_run(struct via_vm* vm);
 
