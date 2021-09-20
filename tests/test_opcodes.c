@@ -204,6 +204,27 @@ FIXTURE(test_opcodes, "Opcodes")
         END_SECTION
     END_SECTION
 
+    SECTION("FORMP")
+        vm->program[test_addr] = _FORMP();
+        vm->acc = foo;
+
+        SECTION("Is form")
+            foo->type = VIA_V_FORM;
+            result = via_run(vm);
+
+            REQUIRE(vm->acc->type == VIA_V_BOOL);
+            REQUIRE(vm->acc->v_bool);
+        END_SECTION
+        
+        SECTION("Is not form")
+            foo->type = VIA_V_INT;
+            result = via_run(vm);
+
+            REQUIRE(vm->acc->type == VIA_V_BOOL);
+            REQUIRE(!vm->acc->v_bool);
+        END_SECTION
+    END_SECTION
+
     SECTION("SKIPZ")
         vm->program[test_addr + 3] = _RETURN();
         vm->program[test_addr] = _SKIPZ(2);

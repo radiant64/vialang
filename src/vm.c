@@ -8,6 +8,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#if 0
+#define DPRINTF(...) do { printf(__VA_ARGS__); } while (0)
+#else
+#define DPRINTF(...) do {  } while (0)
+#endif
+
 #define SEGMENT_SIZE 32
 #define DEFAULT_STACKSIZE 256
 #define DEFAULT_BOUND_SIZE 2048
@@ -69,8 +75,6 @@ void via_add_core_routines(struct via_vm* vm) {
     // Add some builtins.
     const via_int lookup_index = vm->num_bound++;
     vm->bound[lookup_index] = via_env_lookup;
-    const via_int lookup_form_index = vm->num_bound++;
-    vm->bound[lookup_form_index] = via_lookup_form;
     const via_int apply_index = vm->num_bound++;
     vm->bound[apply_index] = via_apply;
 
@@ -85,17 +89,11 @@ void via_add_core_routines(struct via_vm* vm) {
     // Create trampolines for the builtins.
     vm->program[VIA_LOOKUP_PROC] = _CALLB(lookup_index);
     vm->program[VIA_LOOKUP_PROC + 1] = _RETURN();
-    vm->program[VIA_LOOKUP_FORM_PROC] = _CALLB(lookup_form_index);
-    vm->program[VIA_LOOKUP_FORM_PROC + 1] = _RETURN();
     vm->program[VIA_APPLY_PROC] = _CALLB(apply_index);
     vm->program[VIA_APPLY_PROC + 1] = _RETURN();
 }
 
-static struct via_value* via_make_core_forms(struct via_vm* vm) {
-    struct via_value* forms = via_make_value(vm);
-    forms->type = VIA_V_PAIR;
-
-    return forms;
+static void via_add_core_forms(struct via_vm* vm) {
 }
 
 struct via_vm* via_create_vm() {
@@ -126,15 +124,12 @@ struct via_vm* via_create_vm() {
         }
         vm->stack_size = DEFAULT_STACKSIZE;
 
-        vm->regs[VIA_REG_PC] = via_make_value(vm);
-        vm->regs[VIA_REG_PC]->type = VIA_V_INT;
-        vm->regs[VIA_REG_PC]->v_int = VIA_EVAL_PROC;
+        vm->regs[VIA_REG_PC] = via_make_int(vm, VIA_EVAL_PROC);
 
         vm->regs[VIA_REG_ENV] = via_make_env(vm);
 
         via_add_core_routines(vm);
-        
-        vm->forms = via_make_core_forms(vm);
+        via_add_core_forms(vm);
     }
 
     return vm;
@@ -187,6 +182,80 @@ void via_free_vm(struct via_vm* vm) {
     via_free(vm);
 }
 
+struct via_value* via_make_int(struct via_vm* vm, via_int v_int) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_INT;
+    value->v_int = v_int;
+    
+    return value;
+}
+
+struct via_value* via_make_float(struct via_vm* vm, via_float v_float) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_FLOAT;
+    value->v_float = v_float;
+    
+    return value;
+}
+
+struct via_value* via_make_bool(struct via_vm* vm, via_bool v_bool) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_BOOL;
+    value->v_bool = v_bool;
+    
+    return value;
+}
+
+struct via_value* via_make_string(struct via_vm* vm, const char* v_string) {
+    size_t size = strlen(v_string) + 1;
+    char* string_copy = via_malloc(size);
+    memcpy(string_copy, v_string, size);
+
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_STRING;
+    value->v_string = string_copy;
+    
+    return value;
+}
+
+struct via_value* via_make_pair(
+    struct via_vm* vm,
+    struct via_value* car,
+    struct via_value* cdr
+) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_PAIR;
+    value->v_car = car;
+    value->v_cdr = cdr;
+    
+    return value;
+}
+
+static struct via_value* via_make_proc(
+    struct via_vm* vm,
+    struct via_value* body,
+    struct via_value* formals,
+    struct via_value* env
+) {
+    struct via_value* env_elem = via_make_pair(vm, env, NULL);
+    struct via_value* formals_elem = via_make_pair(vm, formals, env_elem);
+    struct via_value* value = via_make_pair(vm, body, formals_elem);
+    value->type = VIA_V_PROC;
+    
+    return value;
+}
+
+static struct via_value* via_make_builtin(
+    struct via_vm* vm,
+    via_int v_builtin
+) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_BUILTIN;
+    value->v_int = v_builtin;
+    
+    return value;
+}
+
 struct via_value** via_make_array(struct via_vm* vm, size_t size) {
     return via_calloc(size, sizeof(struct via_value*));
 }
@@ -216,12 +285,37 @@ struct via_value* via_make_frame(struct via_vm* vm) {
 }
 
 struct via_value* via_make_env(struct via_vm* vm) {
-    struct via_value* env = via_make_value(vm);
+    return via_make_pair(vm, vm->regs[VIA_REG_ENV], NULL);
+}
 
-    env->type = VIA_V_PAIR;
-    env->v_car = vm->regs[VIA_REG_ENV];
-    
-    return env;
+struct via_value* via_symbol(struct via_vm* vm, const char* name) {
+    struct via_value* entry;
+    struct via_value* cursor = vm->symbols;
+    if (!vm->symbols) {
+        entry = via_make_string(vm, name);
+        entry->type = VIA_V_SYMBOL;
+
+        vm->symbols = via_make_pair(vm, entry, NULL);
+        return vm->symbols->v_car;
+    } else {
+        bool found;
+        while(
+            !(found = (strcmp(cursor->v_car->v_symbol, name) == 0))
+                && cursor->v_cdr
+        ) {
+            cursor = cursor->v_cdr;
+        }
+        if (found) {
+            return cursor->v_car;
+        }
+    }
+
+    entry = via_make_string(vm, name);
+    entry->type = VIA_V_SYMBOL;
+
+    cursor->v_cdr = via_make_pair(vm, entry, NULL);
+
+    return cursor->v_cdr->v_car;
 }
 
 void via_assume_frame(struct via_vm* vm) {
@@ -242,8 +336,42 @@ via_int via_bind(struct via_vm* vm, void(*func)(struct via_vm*)) {
     vm->program[routine + 1] = _RETURN();
     vm->write_cursor = routine + 2;
 
-    return index;
+    return routine;
 };
+
+void via_register_proc(
+    struct via_vm* vm,
+    const char* symbol,
+    struct via_value* formals,
+    void(*func)(struct via_vm*)
+) {
+    via_env_set(
+        vm,
+        via_symbol(vm, symbol),
+        via_make_proc(
+            vm,
+            via_make_builtin(vm, via_bind(vm, func)),
+            formals,
+            vm->regs[VIA_REG_ENV]
+        )
+    );
+}
+
+void via_register_form(
+    struct via_vm* vm,
+    const char* symbol,
+    void(*func)(struct via_vm*)
+) {
+    struct via_value* form = via_make_proc(
+        vm,
+        via_make_builtin(vm, via_bind(vm, func)),
+        NULL,
+        NULL
+    );
+    form->type = VIA_V_FORM;
+
+    via_env_set(vm, via_symbol(vm, symbol), form);
+}
 
 void via_apply(struct via_vm* vm) {
     const struct via_value* proc = vm->regs[VIA_REG_PROC];
@@ -261,6 +389,20 @@ void via_apply(struct via_vm* vm) {
 
     vm->regs[VIA_REG_EXPR] = proc->v_car;
     vm->regs[VIA_REG_PC]->v_int = VIA_EVAL_PROC;
+}
+
+struct via_value* via_get(struct via_vm* vm, const char* symbol_name) {
+    struct via_value* tmp_acc = vm->acc;
+    struct via_value* tmp_ret = vm->ret;
+
+    vm->acc = via_symbol(vm, symbol_name);
+    via_env_lookup(vm);
+    struct via_value* value = vm->ret;
+
+    vm->acc = tmp_acc;
+    vm->ret = tmp_ret;
+
+    return value;
 }
 
 void via_env_lookup(struct via_vm* vm) {
@@ -299,57 +441,11 @@ void via_env_set(
         } while (!found && cursor->v_cdr);
     } 
     if (!found) {
-        cursor->v_cdr = via_make_value(vm);
+        cursor->v_cdr = via_make_pair(vm, NULL, NULL);
         cursor = cursor->v_cdr;
-        cursor->type = VIA_V_PAIR;
     }
 
-    cursor->v_car = via_make_value(vm);
-    cursor->v_car->type = VIA_V_PAIR;
-    cursor->v_car->v_car = symbol;
-    cursor->v_car->v_cdr = value;
-}
-
-void via_lookup_form(struct via_vm* vm) {
-    struct via_value* cursor = vm->forms;
-    if (cursor->v_cdr) {
-        do {
-            cursor = cursor->v_cdr;
-            if (cursor->v_car->v_car == vm->acc) {
-                vm->ret = cursor->v_car->v_cdr;
-                return;
-            }
-        } while (cursor->v_cdr);
-    }
-
-    vm->ret = NULL;
-}
-
-void via_set_form(
-    struct via_vm* vm,
-    struct via_value* symbol,
-    struct via_value* definition
-) {
-    struct via_value* cursor = vm->forms;
-    via_bool found = false;
-    if (cursor->v_cdr) {
-        do {
-            cursor = cursor->v_cdr;
-            if (cursor->v_car->v_car == symbol) {
-                found = true;
-            }
-        } while (!found && cursor->v_cdr);
-    } 
-    if (!found) {
-        cursor->v_cdr = via_make_value(vm);
-        cursor = cursor->v_cdr;
-        cursor->type = VIA_V_PAIR;
-    }
-
-    cursor->v_car = via_make_value(vm);
-    cursor->v_car->type = VIA_V_PAIR;
-    cursor->v_car->v_car = symbol;
-    cursor->v_car->v_cdr = definition;
+    cursor->v_car = via_make_pair(vm, symbol, value);
 }
 
 struct via_value* via_run(struct via_vm* vm) {
@@ -359,49 +455,66 @@ struct via_value* via_run(struct via_vm* vm) {
 
 process_state:
     op = vm->program[vm->regs[VIA_REG_PC]->v_int];
+    DPRINTF("PC %04x: ", vm->regs[VIA_REG_PC]->v_int);
     switch (op & 0xff) {
     case VIA_OP_NOP:
+        DPRINTF("NOP\n");
         break;
     case VIA_OP_CAR:
+        DPRINTF("CAR\n");
         vm->acc = vm->acc->v_car;
         break;
     case VIA_OP_CDR:
+        DPRINTF("CDR\n");
         vm->acc = vm->acc->v_cdr;
         break;
     case VIA_OP_CALL:
+        DPRINTF("CALL %04x\n", op >> 8);
         vm->regs[VIA_REG_PC]->v_int = op >> 8;
+        DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_CALLA:
+        DPRINTF("CALLA (acc = %04x)\n", vm->acc->v_int);
         vm->regs[VIA_REG_PC]->v_int = vm->acc->v_int;
+        DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_CALLB:
+        DPRINTF("CALLB %04x\n", op >> 8);
         old_pc = vm->regs[VIA_REG_PC]->v_int;
         vm->bound[op >> 8](vm);
         if (old_pc != vm->regs[VIA_REG_PC]->v_int) {
+            DPRINTF("-------------\n");
             // PC was changed from within the bound function, process without
             // advancing.
             goto process_state;
         }
         break;
     case VIA_OP_SETRET:
+        DPRINTF("SETRET\n");
         vm->ret = vm->acc;
         break;
     case VIA_OP_LOADRET:
+        DPRINTF("LOADRET\n");
         vm->acc = vm->ret;
         break;
     case VIA_OP_SETEXPR:
+        DPRINTF("SETEXPR\n");
         vm->regs[VIA_REG_EXPR] = vm->acc;
         break;
     case VIA_OP_LOADEXPR:
+        DPRINTF("LOADEXPR\n");
         vm->acc = vm->regs[VIA_REG_EXPR];
         break;
     case VIA_OP_SETPROC:
+        DPRINTF("SETPROC\n");
         vm->regs[VIA_REG_PROC] = vm->acc;
         break;
     case VIA_OP_LOADPROC:
+        DPRINTF("LOADPROC\n");
         vm->acc = vm->regs[VIA_REG_PROC];
         break;
     case VIA_OP_PAIRP:
+        DPRINTF("PAIRP\n");
         val = via_make_value(vm);
         val->type = VIA_V_BOOL;
         if (vm->acc) {
@@ -412,18 +525,48 @@ process_state:
         vm->acc = val;
         break;
     case VIA_OP_SYMBOLP:
+        DPRINTF("SYMBOLP\n");
         val = via_make_value(vm);
         val->type = VIA_V_BOOL;
-        val->v_bool = (vm->acc->type == VIA_V_SYMBOL);
+        if (vm->acc) {
+            val->v_bool = (vm->acc->type == VIA_V_SYMBOL);
+        } else {
+            val->v_bool = false;
+        }
+        vm->acc = val;
+        break;
+    case VIA_OP_BUILTINP:
+        DPRINTF("BUILTINP\n");
+        val = via_make_value(vm);
+        val->type = VIA_V_BOOL;
+        if (vm->acc) {
+            val->v_bool = (vm->acc->type == VIA_V_BUILTIN);
+        } else {
+            val->v_bool = false;
+        }
+        vm->acc = val;
+        break;
+    case VIA_OP_FORMP:
+        DPRINTF("FORMP\n");
+        val = via_make_value(vm);
+        val->type = VIA_V_BOOL;
+        if (vm->acc) {
+            val->v_bool = (vm->acc->type == VIA_V_FORM);
+        } else {
+            val->v_bool = false;
+        }
         vm->acc = val;
         break;
     case VIA_OP_SKIPZ:
-        if (vm->acc && vm->acc->v_bool) {
+        DPRINTF("SKIPZ\n");
+        if (vm->acc && vm->acc->v_int != 0) {
             break;
         }
         vm->regs[VIA_REG_PC]->v_int += (op >> 8);
+        DPRINTF("-------------\n");
         break;
     case VIA_OP_SNAP:
+        DPRINTF("SNAP\n");
         val = via_make_frame(vm);
         // Always skip ahead one instruction, to maintain consistency with
         // SKIPZ and JMP.
@@ -431,32 +574,38 @@ process_state:
         STACK_PUSH(vm, val);
         break;
     case VIA_OP_RETURN:
+        DPRINTF("RETURN\n");
         if (!vm->stack_top) {
             return vm->ret;
         }
         vm->acc = STACK_POP(vm);
         via_assume_frame(vm);
+        DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_JMP:
+        DPRINTF("JMP %d\n", op >> 8);
         vm->regs[VIA_REG_PC]->v_int += (op >> 8);
+        DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_PUSH:
+        DPRINTF("PUSH\n");
         STACK_PUSH(vm, vm->acc);
         break;
     case VIA_OP_POP:
+        DPRINTF("POP\n");
         vm->acc = STACK_POP(vm);
         break;
     case VIA_OP_DROP:
+        DPRINTF("DROP\n");
         (void) STACK_POP(vm);
         break;
     case VIA_OP_PUSHARG:
-        val = via_make_value(vm);
-        val->type = VIA_V_PAIR;
-        val->v_car = vm->acc;
-        val->v_cdr = vm->regs[VIA_REG_ARGS];
+        DPRINTF("PUSHARG\n");
+        val = via_make_pair(vm, vm->acc, vm->regs[VIA_REG_ARGS]);
         vm->regs[VIA_REG_ARGS] = val;
         break;
     case VIA_OP_POPARG:
+        DPRINTF("POPARG\n");
         vm->acc = vm->regs[VIA_REG_ARGS]->v_car;
         vm->regs[VIA_REG_ARGS] = vm->regs[VIA_REG_ARGS]->v_cdr;
         break;

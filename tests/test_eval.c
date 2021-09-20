@@ -3,6 +3,17 @@
 #include <via/asm_macros.h>
 #include <via/vm.h>
 
+static void test_add(struct via_vm* vm) {
+    struct via_value* a = via_get(vm, "a");
+    struct via_value* b = via_get(vm, "b");
+
+    vm->ret = via_make_int(vm, a->v_int + b->v_int);
+}
+
+static void test_form(struct via_vm* vm) {
+
+}
+
 FIXTURE(test_eval, "Eval")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
@@ -19,14 +30,10 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Symbol lookup")
-        struct via_value* symbol = via_make_value(vm);
-        symbol->type = VIA_V_SYMBOL;
-        symbol->v_symbol = "test-symbol";
-        
         struct via_value* value = via_make_value(vm);
 
-        via_env_set(vm, symbol, value); 
-        vm->regs[VIA_REG_EXPR] = symbol;
+        via_env_set(vm, via_symbol(vm, "test-symbol"), value); 
+        vm->regs[VIA_REG_EXPR] = via_symbol(vm, "test-symbol");
 
         result = via_run(vm);
 
@@ -34,46 +41,62 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Procedure application")
-        struct via_value* symbol = via_make_value(vm);
-        symbol->type = VIA_V_SYMBOL;
-        symbol->v_symbol = "value";
+        struct via_value* formals = via_make_pair(
+            vm,
+            via_symbol(vm, "value"),
+            NULL
+        );
 
-        struct via_value* formals = via_make_value(vm);
-        formals->type = VIA_V_PAIR;
-        formals->v_car = symbol;
-
-        struct via_value* proc = via_make_value(vm);
+        struct via_value* proc = via_make_pair(
+            vm,
+            via_symbol(vm, "value"),
+            via_make_pair(
+                vm,
+                formals,
+                via_make_pair(
+                    vm,
+                    vm->regs[VIA_REG_ENV],
+                    NULL
+                )
+            )
+        );
         proc->type = VIA_V_PROC;
 
-        // Body
-        proc->v_car = symbol;
-
-        // Formals
-        proc->v_cdr = via_make_value(vm);
-        proc->v_cdr->type = VIA_V_PAIR;
-        proc->v_cdr->v_car = formals;
-
-        // Env
-        proc->v_cdr->v_cdr = via_make_value(vm);
-        proc->v_cdr->v_cdr->type = VIA_V_PAIR;
-        proc->v_cdr->v_cdr->v_car = vm->regs[VIA_REG_ENV];
-
         // Compound expression
-        struct via_value* compound = via_make_value(vm);
-        compound->type = VIA_V_PAIR;
-        compound->v_car = proc;
-        compound->v_cdr = via_make_value(vm);
-        compound->v_cdr->type = VIA_V_PAIR;
-        compound->v_cdr->v_car = via_make_value(vm);
-        compound->v_cdr->v_car->type = VIA_V_INT;
-        compound->v_cdr->v_car->v_int = 123;
-
-        vm->regs[VIA_REG_EXPR] = compound;
+        vm->regs[VIA_REG_EXPR] = via_make_pair(
+            vm,
+            proc,
+            via_make_pair(vm, via_make_int(vm, 123), NULL)
+        );
 
         result = via_run(vm);
 
         REQUIRE(result->type == VIA_V_INT);
         REQUIRE(result->v_int == 123);
+    END_SECTION
+    
+    SECTION("Procedure application (builtin)")
+        struct via_value* formals = via_make_pair(
+            vm,
+            via_symbol(vm, "a"),
+            via_make_pair(vm, via_symbol(vm, "b"), NULL)
+        );
+        via_register_proc(vm, "test-add", formals, test_add);
+
+        vm->regs[VIA_REG_EXPR] = via_make_pair(
+            vm,
+            via_symbol(vm, "test-add"),
+            via_make_pair(
+                vm,
+                via_make_int(vm, 12),
+                via_make_pair(vm, via_make_int(vm, 34), NULL)
+            )
+        );
+
+        result = via_run(vm);
+
+        REQUIRE(result->type == VIA_V_INT);
+        REQUIRE(result->v_int == 46);
     END_SECTION
 
     via_free_vm(vm);

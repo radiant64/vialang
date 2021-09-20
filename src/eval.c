@@ -10,11 +10,19 @@ static const via_int via_eval_prg_impl[] = {
     // of a compound evaluation, replacing the current frame.
     _PUSH(),
     _PAIRP(),
-    _SKIPZ(3),
+    _SKIPZ(2),
         _POP(),
-        _SETEXPR(),
         // Evaluate the form.
         _CALL(VIA_EVAL_COMPOUND_PROC),
+    _POP(),
+
+    // Check if the value is a builtin, if true return the result of executing
+    // it, replacing the current frame.
+    _PUSH(),
+    _BUILTINP(),
+    _SKIPZ(2),
+        _POP(),
+        _CALLA(), // Procedure body is a program offset.
     _POP(),
 
     // Check if the value is a symbol; if true return the lookup result,
@@ -42,17 +50,25 @@ static const via_int via_eval_compound_prg_impl[] = {
     // resolves to a form.
     _PUSH(),
     _SYMBOLP(),
-    _SKIPZ(6),
+    _SKIPZ(15),
         _POP(),
         _SNAP(1),
-            _CALL(VIA_LOOKUP_FORM_PROC),
+            _CALL(VIA_LOOKUP_PROC),
         _LOADRET(),
+        _FORMP(),
 
-        // If the symbol resolved to a special form, drop the expression and
-        // symbol from the stack and return the result of running the resolved
-        // form routine, replacing the current stack frame.
-        _SKIPZ(1),
-            _CALLA(),
+        // If the symbol resolved to a special form, evaluate the return value
+        // of evaluating the form expression.
+        _SKIPZ(7),
+            _LOADRET(),
+            _SNAP(5),
+                _LOADEXPR(),
+                _PUSHARG(),
+                _LOADRET(),
+                _SETEXPR(),
+                _CALL(VIA_EVAL_PROC),
+        _LOADRET(),
+        _JMP(2),
     _POP(),
 
     // Regular form; procedure application.

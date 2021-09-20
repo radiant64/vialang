@@ -18,6 +18,8 @@ enum via_type {
     VIA_V_PAIR,
     VIA_V_ARRAY,
     VIA_V_PROC,
+    VIA_V_FORM,
+    VIA_V_BUILTIN,
     VIA_V_SYMBOL
 };
 
@@ -36,6 +38,8 @@ enum via_op {
     VIA_OP_LOADPROC,
     VIA_OP_PAIRP,
     VIA_OP_SYMBOLP,
+    VIA_OP_FORMP,
+    VIA_OP_BUILTINP,
     VIA_OP_SKIPZ,
     VIA_OP_SNAP,
     VIA_OP_RETURN,

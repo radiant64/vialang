@@ -28,6 +28,10 @@
 
 #define _SYMBOLP() VIA_OP_SYMBOLP
 
+#define _FORMP() VIA_OP_FORMP
+
+#define _BUILTINP() VIA_OP_BUILTINP
+
 #define _SKIPZ(_OFFSET) (VIA_OP_SKIPZ | (_OFFSET << 8))
 
 #define _SNAP(_OFFSET) (VIA_OP_SNAP | (_OFFSET << 8))
