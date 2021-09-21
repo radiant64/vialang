@@ -11,7 +11,19 @@ static void test_add(struct via_vm* vm) {
 }
 
 static void test_form(struct via_vm* vm) {
+    vm->ret = via_context(vm)->v_cdr->v_car;
+}
 
+static void test_car(struct via_vm* vm) {
+    vm->ret = via_pop_arg(vm)->v_car;
+}
+
+static void test_cdr(struct via_vm* vm) {
+    vm->ret = via_pop_arg(vm)->v_cdr;
+}
+
+static void test_context(struct via_vm* vm) {
+    vm->ret = via_context(vm);
 }
 
 FIXTURE(test_eval, "Eval")
@@ -97,6 +109,60 @@ FIXTURE(test_eval, "Eval")
 
         REQUIRE(result->type == VIA_V_INT);
         REQUIRE(result->v_int == 46);
+    END_SECTION
+
+    SECTION("Special forms")
+        vm->regs[VIA_REG_EXPR] = via_make_pair(
+            vm,
+            via_symbol(vm, "test-form"),
+            via_make_pair(vm, via_symbol(vm, "test-symbol"), NULL)
+        );
+            
+        SECTION("Native") 
+            via_register_proc(vm, "car", NULL, test_car);
+            via_register_proc(vm, "cdr", NULL, test_cdr);
+            via_register_proc(vm, "context", NULL, test_context);
+            struct via_value* form = via_make_pair(
+                vm,
+                via_make_pair(
+                    vm,
+                    via_symbol(vm, "car"),
+                    via_make_pair(
+                        vm,
+                        via_make_pair(
+                            vm,
+                            via_symbol(vm, "cdr"),
+                            via_make_pair(
+                                vm,
+                                via_make_pair(
+                                    vm,
+                                    via_symbol(vm, "context"),
+                                    NULL
+                                ),
+                                NULL
+                            )
+                        ),
+                        NULL
+                    )
+                ),
+                NULL
+            );
+            form->type = VIA_V_FORM;
+
+            via_env_set(vm, via_symbol(vm, "test-form"), form);
+
+            result = via_run(vm);
+
+            REQUIRE(result == via_symbol(vm, "test-symbol"));
+        END_SECTION
+
+        SECTION("Built in")
+            via_register_form(vm, "test-form", test_form);
+            result = via_run(vm);
+
+            REQUIRE(result == via_symbol(vm, "test-symbol"));
+        END_SECTION
+
     END_SECTION
 
     via_free_vm(vm);

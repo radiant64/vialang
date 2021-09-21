@@ -24,6 +24,8 @@
 
 #define _LOADPROC() VIA_OP_LOADPROC
 
+#define _SETCTXT() VIA_OP_SETCTXT
+
 #define _PAIRP() VIA_OP_PAIRP
 
 #define _SYMBOLP() VIA_OP_SYMBOLP

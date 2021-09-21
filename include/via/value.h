@@ -36,6 +36,7 @@ enum via_op {
     VIA_OP_LOADEXPR,
     VIA_OP_SETPROC,
     VIA_OP_LOADPROC,
+    VIA_OP_SETCTXT,
     VIA_OP_PAIRP,
     VIA_OP_SYMBOLP,
     VIA_OP_FORMP,

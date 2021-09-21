@@ -23,6 +23,7 @@ enum via_reg {
     VIA_REG_PROC,
     VIA_REG_ENV,
     VIA_REG_EXCN,
+    VIA_REG_CTXT,
 
     VIA_REG_COUNT
 };
@@ -110,6 +111,12 @@ void via_env_set(
 );
 
 struct via_value* via_get(struct via_vm* vm, const char* symbol_name);
+
+void via_push_arg(struct via_vm* vm, struct via_value* val);
+
+struct via_value* via_pop_arg(struct via_vm* vm);
+
+struct via_value* via_context(struct via_vm* vm);
 
 void via_lookup_form(struct via_vm* vm);
 

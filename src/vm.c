@@ -362,10 +362,9 @@ void via_register_form(
     const char* symbol,
     void(*func)(struct via_vm*)
 ) {
-    struct via_value* form = via_make_proc(
+    struct via_value* form = via_make_pair(
         vm,
         via_make_builtin(vm, via_bind(vm, func)),
-        NULL,
         NULL
     );
     form->type = VIA_V_FORM;
@@ -381,7 +380,7 @@ void via_apply(struct via_vm* vm) {
     vm->acc = proc->v_cdr->v_cdr->v_car;
     vm->regs[VIA_REG_ENV] = via_make_env(vm);
 
-    while (args) {
+    while (formals) {
         via_env_set(vm, formals->v_car, args->v_car);
         args = args->v_cdr;
         formals = formals->v_cdr;
@@ -403,6 +402,20 @@ struct via_value* via_get(struct via_vm* vm, const char* symbol_name) {
     vm->ret = tmp_ret;
 
     return value;
+}
+
+void via_push_arg(struct via_vm* vm, struct via_value* val) {
+    vm->regs[VIA_REG_ARGS] = via_make_pair(vm, val, vm->regs[VIA_REG_ARGS]);
+}
+
+struct via_value* via_pop_arg(struct via_vm* vm) {
+    struct via_value* val = vm->regs[VIA_REG_ARGS]->v_car;
+    vm->regs[VIA_REG_ARGS] = vm->regs[VIA_REG_ARGS]->v_cdr;
+    return val; 
+}
+
+struct via_value* via_context(struct via_vm* vm) {
+    return vm->regs[VIA_REG_CTXT];
 }
 
 void via_env_lookup(struct via_vm* vm) {
@@ -513,6 +526,10 @@ process_state:
         DPRINTF("LOADPROC\n");
         vm->acc = vm->regs[VIA_REG_PROC];
         break;
+    case VIA_OP_SETCTXT:
+        DPRINTF("SETCTXT\n");
+        vm->regs[VIA_REG_CTXT] = vm->acc;
+        break;
     case VIA_OP_PAIRP:
         DPRINTF("PAIRP\n");
         val = via_make_value(vm);
@@ -566,7 +583,7 @@ process_state:
         DPRINTF("-------------\n");
         break;
     case VIA_OP_SNAP:
-        DPRINTF("SNAP\n");
+        DPRINTF("SNAP %d\n", op >> 8);
         val = via_make_frame(vm);
         // Always skip ahead one instruction, to maintain consistency with
         // SKIPZ and JMP.
@@ -601,13 +618,11 @@ process_state:
         break;
     case VIA_OP_PUSHARG:
         DPRINTF("PUSHARG\n");
-        val = via_make_pair(vm, vm->acc, vm->regs[VIA_REG_ARGS]);
-        vm->regs[VIA_REG_ARGS] = val;
+        via_push_arg(vm, vm->acc);
         break;
     case VIA_OP_POPARG:
         DPRINTF("POPARG\n");
-        vm->acc = vm->regs[VIA_REG_ARGS]->v_car;
-        vm->regs[VIA_REG_ARGS] = vm->regs[VIA_REG_ARGS]->v_cdr;
+        vm->acc = via_pop_arg(vm);
         break;
     }
 

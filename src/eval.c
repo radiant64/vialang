@@ -50,23 +50,23 @@ static const via_int via_eval_compound_prg_impl[] = {
     // resolves to a form.
     _PUSH(),
     _SYMBOLP(),
-    _SKIPZ(15),
+    _SKIPZ(14),
         _POP(),
         _SNAP(1),
             _CALL(VIA_LOOKUP_PROC),
         _LOADRET(),
         _FORMP(),
 
-        // If the symbol resolved to a special form, evaluate the return value
-        // of evaluating the form expression.
-        _SKIPZ(7),
+        // If the symbol resolved to a special form, push the current expression
+        // as CTXT, and evaluate the form expression, replacing the current
+        // frame.
+        _SKIPZ(6),
+            _LOADEXPR(),
+            _SETCTXT(),
             _LOADRET(),
-            _SNAP(5),
-                _LOADEXPR(),
-                _PUSHARG(),
-                _LOADRET(),
-                _SETEXPR(),
-                _CALL(VIA_EVAL_PROC),
+            _CAR(),
+            _SETEXPR(),
+            _CALL(VIA_EVAL_PROC),
         _LOADRET(),
         _JMP(2),
     _POP(),
