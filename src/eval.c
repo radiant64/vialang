@@ -115,15 +115,21 @@ const size_t via_eval_compound_prg_size = sizeof(via_eval_compound_prg_impl);
 static const via_int via_begin_prg_impl[] = {
     _LOADEXPR(),
     _CDR(),
-    _SKIPZ(7),
-        _SNAP(1),
+    _SKIPZ(9),
+        _SNAP(4),
+            _LOADEXPR(),
+            _CAR(),
+            _SETEXPR(),
             _CALL(VIA_EVAL_PROC),
         _LOADEXPR(),
         _CDR(),
         _SETEXPR(),
-        _JMP(-9), // Loop back to the first _CDR().
+        _JMP(-10), // Loop back to the first _CDR().
 
     // Last expression; do a frame-replacing tail call.
+    _LOADEXPR(),
+    _CAR(),
+    _SETEXPR(),
     _CALL(VIA_EVAL_PROC)
 };
 const via_int* via_begin_prg = via_begin_prg_impl;
