@@ -15,11 +15,13 @@ enum via_type {
     VIA_V_FLOAT,
     VIA_V_BOOL,
     VIA_V_STRING,
+    VIA_V_STRINGVIEW,
     VIA_V_PAIR,
     VIA_V_ARRAY,
     VIA_V_PROC,
     VIA_V_FORM,
     VIA_V_BUILTIN,
+    VIA_V_FRAME,
     VIA_V_SYMBOL
 };
 
@@ -40,6 +42,7 @@ enum via_op {
     VIA_OP_PAIRP,
     VIA_OP_SYMBOLP,
     VIA_OP_FORMP,
+    VIA_OP_FRAMEP,
     VIA_OP_BUILTINP,
     VIA_OP_SKIPZ,
     VIA_OP_SNAP,

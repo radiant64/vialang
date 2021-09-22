@@ -20,8 +20,9 @@
 #define DEFAULT_PROGRAM_SIZE 8192
 #define DEFAULT_WRITE_START 512
 
-#define STACK_PUSH(vm, value) (vm->stack[vm->stack_top++] = value)
-#define STACK_POP(vm) (vm->stack[--vm->stack_top])
+#define STACK_PUSH(vm, value)\
+    (vm->stack[vm->regs[VIA_REG_SPTR]->v_int++] = value)
+#define STACK_POP(vm) (vm->stack[--(vm->regs[VIA_REG_SPTR]->v_int)])
 
 static struct via_segment* via_create_segment(size_t size) {
     struct via_segment* segment = via_calloc(1, sizeof(struct via_segment));
@@ -47,36 +48,14 @@ static void via_free_segments(struct via_segment* segment) {
     }
 }
 
-static struct via_value* via_heap_get(struct via_segment* heap, via_int addr) {
-    size_t pos = 0;
-    while ((pos += heap->num_values) < addr) {
-        heap = heap->next;
-        assert(heap); // TODO: Signal error.
-    }
-
-    return &heap->values[addr + heap->num_values - pos];
-}
-
-static void via_heap_store(
-    struct via_segment* heap,
-    via_int addr,
-    const struct via_value* value
-) {
-    size_t pos = 0;
-    while ((pos += heap->num_values) < addr) {
-        heap = heap->next;
-        assert(heap); // TODO: Signal error.
-    }
-
-    heap->values[addr + heap->num_values - pos] = *value;
-}
-
 void via_add_core_routines(struct via_vm* vm) {
     // Add some builtins.
     const via_int lookup_index = vm->num_bound++;
     vm->bound[lookup_index] = via_env_lookup;
     const via_int apply_index = vm->num_bound++;
-    vm->bound[apply_index] = via_apply;
+    vm->bound[apply_index] = via_b_apply;
+    const via_int assume_index = vm->num_bound++;
+    vm->bound[assume_index] = via_assume_frame;
 
     // Copy the native routines into memory.
     memcpy(&vm->program[VIA_EVAL_PROC], via_eval_prg, via_eval_prg_size); 
@@ -85,15 +64,24 @@ void via_add_core_routines(struct via_vm* vm) {
         via_eval_compound_prg,
         via_eval_compound_prg_size
     );
+    memcpy(&vm->program[VIA_BEGIN_PROC], via_begin_prg, via_begin_prg_size);
 
     // Create trampolines for the builtins.
     vm->program[VIA_LOOKUP_PROC] = _CALLB(lookup_index);
     vm->program[VIA_LOOKUP_PROC + 1] = _RETURN();
     vm->program[VIA_APPLY_PROC] = _CALLB(apply_index);
     vm->program[VIA_APPLY_PROC + 1] = _RETURN();
+    vm->program[VIA_ASSUME_PROC] = _CALLB(assume_index);
 }
 
 static void via_add_core_forms(struct via_vm* vm) {
+    via_register_form(vm, "quote", via_b_quote);
+    via_register_form(vm, "begin", via_b_begin);
+    via_register_form(vm, "yield", via_b_yield);
+}
+
+static void via_add_core_procedures(struct via_vm* vm) {
+    via_register_proc(vm, "context", NULL, via_b_context);
 }
 
 struct via_vm* via_create_vm() {
@@ -124,15 +112,27 @@ struct via_vm* via_create_vm() {
         }
         vm->stack_size = DEFAULT_STACKSIZE;
 
+        vm->frames = via_calloc(DEFAULT_STACKSIZE, sizeof(struct via_value*));
+        if (!vm->frames) {
+            goto cleanup_stack;
+        }
+        vm->frames_size = DEFAULT_STACKSIZE;
+
         vm->regs[VIA_REG_PC] = via_make_int(vm, VIA_EVAL_PROC);
 
         vm->regs[VIA_REG_ENV] = via_make_env(vm);
+        
+        vm->regs[VIA_REG_SPTR] = via_make_int(vm, 0);
 
         via_add_core_routines(vm);
         via_add_core_forms(vm);
+        via_add_core_procedures(vm);
     }
 
     return vm;
+
+cleanup_stack:
+    via_free(vm->stack);
 
 cleanup_bound:
     via_free(vm->bound);
@@ -218,6 +218,12 @@ struct via_value* via_make_string(struct via_vm* vm, const char* v_string) {
     return value;
 }
 
+struct via_value* via_make_stringview(struct via_vm* vm, const char* v_string) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_STRINGVIEW;
+    value->v_string = v_string;
+}
+
 struct via_value* via_make_pair(
     struct via_vm* vm,
     struct via_value* car,
@@ -266,7 +272,7 @@ struct via_value* via_make_frame(struct via_vm* vm) {
         return NULL;
     }
 
-    frame->type = VIA_V_ARRAY;
+    frame->type = VIA_V_FRAME;
     frame->v_array = via_make_array(vm, VIA_REG_COUNT);
     if (!frame->v_array) {
         return NULL;
@@ -319,7 +325,7 @@ struct via_value* via_symbol(struct via_vm* vm, const char* name) {
 }
 
 void via_assume_frame(struct via_vm* vm) {
-    assert(vm->acc->type == VIA_V_ARRAY);
+    assert(vm->acc->type == VIA_V_FRAME);
     struct via_value** frame_regs = vm->acc->v_array;
 
     for (size_t i = 0; i < VIA_REG_COUNT; ++i) {
@@ -372,7 +378,30 @@ void via_register_form(
     via_env_set(vm, via_symbol(vm, symbol), form);
 }
 
-void via_apply(struct via_vm* vm) {
+void via_b_quote(struct via_vm* vm) {
+    vm->ret = via_context(vm)->v_car;
+}
+
+void via_b_begin(struct via_vm* vm) { 
+    vm->regs[VIA_REG_EXPR] = via_context(vm);
+    vm->regs[VIA_REG_PC]->v_int = VIA_BEGIN_PROC;
+}
+
+void via_b_yield(struct via_vm* vm) {
+    if (!vm->frames_top) {
+        // TODO: Throw exception
+    }
+    vm->acc = vm->frames[--vm->frames_top];
+    via_assume_frame(vm);
+    
+    vm->ret = via_make_pair(vm, vm->ret, via_make_frame(vm));
+}
+
+void via_b_context(struct via_vm* vm) {
+    vm->ret = via_context(vm);
+}
+
+void via_b_apply(struct via_vm* vm) {
     const struct via_value* proc = vm->regs[VIA_REG_PROC];
     const struct via_value* args = vm->regs[VIA_REG_ARGS];
 
@@ -574,6 +603,17 @@ process_state:
         }
         vm->acc = val;
         break;
+    case VIA_OP_FRAMEP:
+        DPRINTF("FRAMEP\n");
+        val = via_make_value(vm);
+        val->type = VIA_V_BOOL;
+        if (vm->acc) {
+            val->v_bool = (vm->acc->type == VIA_V_FRAME);
+        } else {
+            val->v_bool = false;
+        }
+        vm->acc = val;
+        break;
     case VIA_OP_SKIPZ:
         DPRINTF("SKIPZ\n");
         if (vm->acc && vm->acc->v_int != 0) {
@@ -588,14 +628,14 @@ process_state:
         // Always skip ahead one instruction, to maintain consistency with
         // SKIPZ and JMP.
         val->v_array[VIA_REG_PC]->v_int += (op >> 8) + 1;
-        STACK_PUSH(vm, val);
+        vm->frames[vm->frames_top++] = val;
         break;
     case VIA_OP_RETURN:
         DPRINTF("RETURN\n");
-        if (!vm->stack_top) {
+        if (!vm->frames_top) {
             return vm->ret;
         }
-        vm->acc = STACK_POP(vm);
+        vm->acc = vm->frames[--vm->frames_top];
         via_assume_frame(vm);
         DPRINTF("-------------\n");
         goto process_state;

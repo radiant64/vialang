@@ -8,4 +8,6 @@ endmacro()
 
 create_test_target(test_opcodes test_opcodes.c)
 create_test_target(test_eval test_eval.c)
+create_test_target(test_parse test_parse.c)
+create_test_target(test_programs test_programs.c)
 

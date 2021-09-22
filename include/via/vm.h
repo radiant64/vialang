@@ -12,8 +12,10 @@ struct via_value;
 enum via_routines {
     VIA_EVAL_PROC = 0,
     VIA_EVAL_COMPOUND_PROC = 0x20,
+    VIA_BEGIN_PROC = 0x50,
     VIA_LOOKUP_PROC = 0x60,
-    VIA_APPLY_PROC = 0x80
+    VIA_APPLY_PROC = 0x80,
+    VIA_ASSUME_PROC = 0x88
 };
 
 enum via_reg {
@@ -22,7 +24,8 @@ enum via_reg {
     VIA_REG_ARGS,
     VIA_REG_PROC,
     VIA_REG_ENV,
-    VIA_REG_EXCN,
+    VIA_REG_EXCH,
+    VIA_REG_SPTR,
     VIA_REG_CTXT,
 
     VIA_REG_COUNT
@@ -54,7 +57,10 @@ struct via_vm {
 
     struct via_value** stack;
     size_t stack_size;
-    size_t stack_top;
+    
+    struct via_value** frames;
+    size_t frames_size;
+    size_t frames_top;
 };
 
 struct via_vm* via_create_vm();
@@ -67,6 +73,7 @@ struct via_value* via_make_int(struct via_vm* vm, via_int v_int);
 struct via_value* via_make_float(struct via_vm* vm, via_float v_float);
 struct via_value* via_make_bool(struct via_vm* vm, via_bool v_bool);
 struct via_value* via_make_string(struct via_vm* vm, const char* v_string);
+struct via_value* via_make_stringview(struct via_vm* vm, const char* v_string);
 struct via_value* via_make_pair(
     struct via_vm* vm,
     struct via_value* car,
@@ -98,9 +105,15 @@ void via_register_form(
     void(*func)(struct via_vm*)
 );
 
-void via_apply(struct via_vm* vm);
+void via_b_quote(struct via_vm* vm);
 
-void via_form(struct via_vm* vm);
+void via_b_begin(struct via_vm* vm);
+
+void via_b_yield(struct via_vm* vm);
+
+void via_b_context(struct via_vm* vm);
+
+void via_b_apply(struct via_vm* vm);
 
 void via_env_lookup(struct via_vm* vm);
 

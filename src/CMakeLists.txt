@@ -1,6 +1,7 @@
 set(SOURCES
     alloc.c
     eval.c
+    parse.c
     vm.c
 )
 add_library(via ${SOURCES})

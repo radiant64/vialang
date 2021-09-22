@@ -32,6 +32,8 @@
 
 #define _FORMP() VIA_OP_FORMP
 
+#define _FRAMEP() VIA_OP_FRAMEP
+
 #define _BUILTINP() VIA_OP_BUILTINP
 
 #define _SKIPZ(_OFFSET) (VIA_OP_SKIPZ | (_OFFSET << 8))

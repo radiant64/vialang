@@ -6,6 +6,14 @@
 static const via_int via_eval_prg_impl[] = {
     _LOADEXPR(),
 
+    // Check if the value is a frame, if true assume the frame.
+    _PUSH(),
+    _FRAMEP(),
+    _SKIPZ(2),
+        _POP(),
+        _CALL(VIA_ASSUME_PROC),
+    _POP(),
+
     // Check if the value is a compound expression; if true return the result
     // of a compound evaluation, replacing the current frame.
     _PUSH(),
@@ -50,18 +58,19 @@ static const via_int via_eval_compound_prg_impl[] = {
     // resolves to a form.
     _PUSH(),
     _SYMBOLP(),
-    _SKIPZ(14),
+    _SKIPZ(15),
         _POP(),
         _SNAP(1),
             _CALL(VIA_LOOKUP_PROC),
         _LOADRET(),
-        _FORMP(),
 
-        // If the symbol resolved to a special form, push the current expression
-        // as CTXT, and evaluate the form expression, replacing the current
-        // frame.
-        _SKIPZ(6),
+        // If the symbol resolved to a special form, set the rest of the
+        // current expression as CTXT, and evaluate the form expression,
+        // replacing the current frame.
+        _FORMP(),
+        _SKIPZ(7),
             _LOADEXPR(),
+            _CDR(),
             _SETCTXT(),
             _LOADRET(),
             _CAR(),
@@ -102,4 +111,21 @@ static const via_int via_eval_compound_prg_impl[] = {
 };
 const via_int* via_eval_compound_prg = via_eval_compound_prg_impl;
 const size_t via_eval_compound_prg_size = sizeof(via_eval_compound_prg_impl);
+
+static const via_int via_begin_prg_impl[] = {
+    _LOADEXPR(),
+    _CDR(),
+    _SKIPZ(7),
+        _SNAP(1),
+            _CALL(VIA_EVAL_PROC),
+        _LOADEXPR(),
+        _CDR(),
+        _SETEXPR(),
+        _JMP(-9), // Loop back to the first _CDR().
+
+    // Last expression; do a frame-replacing tail call.
+    _CALL(VIA_EVAL_PROC)
+};
+const via_int* via_begin_prg = via_begin_prg_impl;
+const size_t via_begin_prg_size = sizeof(via_begin_prg_impl);
 

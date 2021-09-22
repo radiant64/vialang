@@ -96,16 +96,16 @@ FIXTURE(test_opcodes, "Opcodes")
         builtin_called = false;
 
         SECTION("Regular")
-            vm->program[test_addr] = _CALLB(bound);
+            vm->program[test_addr] = _CALL(bound);
             result = via_run(vm);
 
             REQUIRE(builtin_called);
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 1);
+            REQUIRE(vm->regs[VIA_REG_PC]->v_int == bound + 1);
         END_SECTION
 
         SECTION("Jumping")
             vm->program[test_addr + 2] = _RETURN();
-            vm->program[test_addr] = _CALLB(bound_jumping);
+            vm->program[test_addr] = _CALL(bound_jumping);
             result = via_run(vm);
 
             REQUIRE(builtin_called);
@@ -225,6 +225,27 @@ FIXTURE(test_opcodes, "Opcodes")
         END_SECTION
     END_SECTION
 
+    SECTION("FRAMEP")
+        vm->program[test_addr] = _FRAMEP();
+        vm->acc = foo;
+
+        SECTION("Is frame")
+            foo->type = VIA_V_FRAME;
+            result = via_run(vm);
+
+            REQUIRE(vm->acc->type == VIA_V_BOOL);
+            REQUIRE(vm->acc->v_bool);
+        END_SECTION
+        
+        SECTION("Is not frame")
+            foo->type = VIA_V_INT;
+            result = via_run(vm);
+
+            REQUIRE(vm->acc->type == VIA_V_BOOL);
+            REQUIRE(!vm->acc->v_bool);
+        END_SECTION
+    END_SECTION
+
     SECTION("SKIPZ")
         vm->program[test_addr + 3] = _RETURN();
         vm->program[test_addr] = _SKIPZ(2);
@@ -264,27 +285,16 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->regs[VIA_REG_ARGS] = foo;
         vm->regs[VIA_REG_PROC] = foo;
         vm->regs[VIA_REG_ENV] = foo;
-        vm->regs[VIA_REG_EXCN] = foo;
-        vm->program[test_addr] = _SNAP(0);
+        vm->regs[VIA_REG_EXCH] = foo;
+        vm->program[test_addr] = _SNAP(3);
         vm->program[test_addr + 1] = _SETEXPR();
-        vm->program[test_addr + 2] = _POP();
-        vm->program[test_addr + 3] = _RETURN();
+        vm->program[test_addr + 2] = _RETURN();
+        vm->program[test_addr + 4] = _RETURN();
 
         result = via_run(vm);
 
-        REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 3);
-        REQUIRE(vm->regs[VIA_REG_EXPR] == foo);
-
-        struct via_value* frame = vm->acc;
-        REQUIRE(frame);
-        REQUIRE(frame->type == VIA_V_ARRAY);
-        REQUIRE(frame->v_size == VIA_REG_COUNT);
-        REQUIRE(frame->v_array[VIA_REG_PC]->v_int == test_addr + 1);
-        REQUIRE(frame->v_array[VIA_REG_EXPR] == bar);
-        REQUIRE(frame->v_array[VIA_REG_ARGS] == foo);
-        REQUIRE(frame->v_array[VIA_REG_PROC] == foo);
-        REQUIRE(frame->v_array[VIA_REG_ENV] == foo);
-        REQUIRE(frame->v_array[VIA_REG_EXCN] == foo);
+        REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 4);
+        REQUIRE(vm->regs[VIA_REG_EXPR] == bar);
     END_SECTION
 
     SECTION("JMP")

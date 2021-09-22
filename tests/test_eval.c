@@ -11,7 +11,7 @@ static void test_add(struct via_vm* vm) {
 }
 
 static void test_form(struct via_vm* vm) {
-    vm->ret = via_context(vm)->v_cdr->v_car;
+    vm->ret = via_context(vm)->v_car;
 }
 
 static void test_car(struct via_vm* vm) {
@@ -117,7 +117,7 @@ FIXTURE(test_eval, "Eval")
             via_symbol(vm, "test-form"),
             via_make_pair(vm, via_symbol(vm, "test-symbol"), NULL)
         );
-            
+
         SECTION("Native") 
             via_register_proc(vm, "car", NULL, test_car);
             via_register_proc(vm, "cdr", NULL, test_cdr);
@@ -131,16 +131,8 @@ FIXTURE(test_eval, "Eval")
                         vm,
                         via_make_pair(
                             vm,
-                            via_symbol(vm, "cdr"),
-                            via_make_pair(
-                                vm,
-                                via_make_pair(
-                                    vm,
-                                    via_symbol(vm, "context"),
-                                    NULL
-                                ),
-                                NULL
-                            )
+                            via_symbol(vm, "context"),
+                            NULL
                         ),
                         NULL
                     )
@@ -162,7 +154,6 @@ FIXTURE(test_eval, "Eval")
 
             REQUIRE(result == via_symbol(vm, "test-symbol"));
         END_SECTION
-
     END_SECTION
 
     via_free_vm(vm);
