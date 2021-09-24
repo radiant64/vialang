@@ -243,7 +243,7 @@ struct via_value* via_parse_symbol(
     memcpy(buffer, start, c - start);
     buffer[c - start] = '\0';
 
-    struct via_value* symbol = via_symbol(vm, buffer);
+    struct via_value* symbol = via_sym(vm, buffer);
 
     return via_parse_ctx_program_add(vm, context, c, symbol);
 }

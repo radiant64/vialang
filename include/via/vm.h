@@ -61,6 +61,8 @@ struct via_vm {
     struct via_value** frames;
     size_t frames_size;
     size_t frames_top;
+
+    uint8_t generation;
 };
 
 struct via_vm* via_create_vm();
@@ -86,7 +88,7 @@ struct via_value* via_make_frame(struct via_vm* vm);
 
 struct via_value* via_make_env(struct via_vm* vm);
 
-struct via_value* via_symbol(struct via_vm* vm, const char* name);
+struct via_value* via_sym(struct via_vm* vm, const char* name);
 
 void via_assume_frame(struct via_vm* vm);
 
@@ -115,15 +117,35 @@ void via_b_context(struct via_vm* vm);
 
 void via_b_apply(struct via_vm* vm);
 
+void via_b_cons(struct via_vm* vm);
+
+void via_b_car(struct via_vm* vm);
+
+void via_b_cdr(struct via_vm* vm);
+
+void via_b_list(struct via_vm* vm);
+
+void via_b_add(struct via_vm* vm);
+
+void via_b_sub(struct via_vm* vm);
+
+void via_b_mul(struct via_vm* vm);
+
+void via_b_div(struct via_vm* vm);
+
+void via_b_mod(struct via_vm* vm);
+
+void via_b_pow(struct via_vm* vm);
+
+void via_b_sin(struct via_vm* vm);
+
+void via_b_cos(struct via_vm* vm);
+
 void via_env_lookup(struct via_vm* vm);
 
-void via_env_set(
-    struct via_vm* vm,
-    struct via_value* symbol,
-    struct via_value* value
-);
-
 struct via_value* via_get(struct via_vm* vm, const char* symbol_name);
+
+struct via_value* via_formals(struct via_vm* vm, ...);
 
 void via_push_arg(struct via_vm* vm, struct via_value* val);
 
@@ -138,6 +160,14 @@ void via_set_form(
     struct via_value* symbol,
     struct via_value* definition
 );
+
+void via_env_set(
+    struct via_vm* vm,
+    struct via_value* symbol,
+    struct via_value* value
+);
+
+void via_garbage_collect(struct via_vm* vm);
 
 struct via_value* via_run(struct via_vm* vm);
 

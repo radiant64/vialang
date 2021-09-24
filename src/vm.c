@@ -5,6 +5,8 @@
 #include <via/asm_macros.h>
 
 #include <assert.h>
+#include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -32,7 +34,7 @@ static struct via_segment* via_create_segment(size_t size) {
             via_free(segment);
             return NULL;
         }
-        
+
         segment->num_values = size;
     }
 
@@ -46,6 +48,49 @@ static void via_free_segments(struct via_segment* segment) {
         via_free(segment);
         segment = next;
     }
+}
+
+static struct via_value* via_value_transformer(struct via_vm* vm, void* value) {
+    return value;
+}
+
+static struct via_value* via_sym_transformer(struct via_vm* vm, void* value) {
+    return via_sym(vm, (const char*) value);
+}
+
+static struct via_value* via_list_impl(
+    struct via_vm* vm,
+    va_list ap,
+    struct via_value*(*transform_func)(struct via_vm*, void*)
+) {
+    if (!transform_func) {
+        transform_func = via_value_transformer;
+    }
+
+    void* value = va_arg(ap, void*);
+    if (!value) {
+        return NULL;
+    }
+
+    struct via_value* list = via_make_pair(vm, transform_func(vm, value), NULL);
+    struct via_value* cursor = list;
+    while (value = va_arg(ap, void*)) {
+        cursor->v_cdr = via_make_pair(vm, transform_func(vm, value), NULL);
+        cursor = cursor->v_cdr;
+    }
+
+    return list;
+}
+
+static struct via_value* via_list(struct via_vm* vm, ...) {
+    va_list ap;
+    va_start(ap, vm);
+
+    struct via_value* list = via_list_impl(vm, ap, NULL);
+
+    va_end(ap);
+
+    return list;
 }
 
 void via_add_core_routines(struct via_vm* vm) {
@@ -82,6 +127,19 @@ static void via_add_core_forms(struct via_vm* vm) {
 
 static void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "context", NULL, via_b_context);
+    via_register_proc(vm, "garbage-collect", NULL, via_garbage_collect);
+    via_register_proc(vm, "cons", via_formals(vm, "a", "b", NULL), via_b_cons);
+    via_register_proc(vm, "car", via_formals(vm, "p", NULL), via_b_car);
+    via_register_proc(vm, "cdr", via_formals(vm, "p", NULL), via_b_cdr);
+    via_register_proc(vm, "list", NULL, via_b_list);
+    via_register_proc(vm, "+", via_formals(vm, "a", "b", NULL), via_b_add);
+    via_register_proc(vm, "-", via_formals(vm, "a", "b", NULL), via_b_sub);
+    via_register_proc(vm, "*", via_formals(vm, "a", "b", NULL), via_b_div);
+    via_register_proc(vm, "/", via_formals(vm, "a", "b", NULL), via_b_mul);
+    via_register_proc(vm, "%", via_formals(vm, "a", "b", NULL), via_b_mod);
+    via_register_proc(vm, "^", via_formals(vm, "a", "b", NULL), via_b_pow);
+    via_register_proc(vm, "sin", via_formals(vm, "a", NULL), via_b_sin);
+    via_register_proc(vm, "cos", via_formals(vm, "a", NULL), via_b_cos);
 }
 
 struct via_vm* via_create_vm() {
@@ -121,7 +179,7 @@ struct via_vm* via_create_vm() {
         vm->regs[VIA_REG_PC] = via_make_int(vm, VIA_EVAL_PROC);
 
         vm->regs[VIA_REG_ENV] = via_make_env(vm);
-        
+
         vm->regs[VIA_REG_SPTR] = via_make_int(vm, 0);
 
         via_add_core_routines(vm);
@@ -186,7 +244,7 @@ struct via_value* via_make_int(struct via_vm* vm, via_int v_int) {
     struct via_value* value = via_make_value(vm);
     value->type = VIA_V_INT;
     value->v_int = v_int;
-    
+
     return value;
 }
 
@@ -194,7 +252,7 @@ struct via_value* via_make_float(struct via_vm* vm, via_float v_float) {
     struct via_value* value = via_make_value(vm);
     value->type = VIA_V_FLOAT;
     value->v_float = v_float;
-    
+
     return value;
 }
 
@@ -202,7 +260,7 @@ struct via_value* via_make_bool(struct via_vm* vm, via_bool v_bool) {
     struct via_value* value = via_make_value(vm);
     value->type = VIA_V_BOOL;
     value->v_bool = v_bool;
-    
+
     return value;
 }
 
@@ -214,7 +272,7 @@ struct via_value* via_make_string(struct via_vm* vm, const char* v_string) {
     struct via_value* value = via_make_value(vm);
     value->type = VIA_V_STRING;
     value->v_string = string_copy;
-    
+
     return value;
 }
 
@@ -233,7 +291,7 @@ struct via_value* via_make_pair(
     value->type = VIA_V_PAIR;
     value->v_car = car;
     value->v_cdr = cdr;
-    
+
     return value;
 }
 
@@ -247,7 +305,7 @@ static struct via_value* via_make_proc(
     struct via_value* formals_elem = via_make_pair(vm, formals, env_elem);
     struct via_value* value = via_make_pair(vm, body, formals_elem);
     value->type = VIA_V_PROC;
-    
+
     return value;
 }
 
@@ -258,7 +316,7 @@ static struct via_value* via_make_builtin(
     struct via_value* value = via_make_value(vm);
     value->type = VIA_V_BUILTIN;
     value->v_int = v_builtin;
-    
+
     return value;
 }
 
@@ -294,7 +352,7 @@ struct via_value* via_make_env(struct via_vm* vm) {
     return via_make_pair(vm, vm->regs[VIA_REG_ENV], NULL);
 }
 
-struct via_value* via_symbol(struct via_vm* vm, const char* name) {
+struct via_value* via_sym(struct via_vm* vm, const char* name) {
     struct via_value* entry;
     struct via_value* cursor = vm->symbols;
     if (!vm->symbols) {
@@ -353,7 +411,7 @@ void via_register_proc(
 ) {
     via_env_set(
         vm,
-        via_symbol(vm, symbol),
+        via_sym(vm, symbol),
         via_make_proc(
             vm,
             via_make_builtin(vm, via_bind(vm, func)),
@@ -375,7 +433,7 @@ void via_register_form(
     );
     form->type = VIA_V_FORM;
 
-    via_env_set(vm, via_symbol(vm, symbol), form);
+    via_env_set(vm, via_sym(vm, symbol), form);
 }
 
 void via_b_quote(struct via_vm* vm) {
@@ -419,11 +477,95 @@ void via_b_apply(struct via_vm* vm) {
     vm->regs[VIA_REG_PC]->v_int = VIA_EVAL_PROC;
 }
 
+void via_b_cons(struct via_vm* vm) {
+    vm->ret = via_make_pair(vm, via_get(vm, "a"), via_get(vm, "b"));
+}
+
+void via_b_car(struct via_vm* vm) {
+    const struct via_value* p = via_get(vm, "p");
+    vm->ret = p->v_car;
+}
+
+void via_b_cdr(struct via_vm* vm) {
+    const struct via_value* p = via_get(vm, "p");
+    vm->ret = p->v_cdr;
+}
+
+void via_b_list(struct via_vm* vm) {
+    vm->ret = vm->regs[VIA_REG_ARGS];
+}
+
+#define OP(INTOP, FLOATOP)\
+    const struct via_value* a = via_get(vm, "a");\
+    const struct via_value* b = via_get(vm, "b");\
+    assert(a->type == VIA_V_INT || a->type == VIA_V_FLOAT);\
+    assert(b->type == VIA_V_INT || b->type == VIA_V_FLOAT);\
+    if (a->type == VIA_V_FLOAT || b->type == VIA_V_FLOAT) {\
+        vm->ret = via_make_float(vm, FLOATOP);\
+    } else {\
+        vm->ret = via_make_int(vm, INTOP);\
+    }
+
+#define INFIX_OP(OPERATOR)\
+    OP(\
+        a->v_int OPERATOR b->v_int,\
+        a->type == VIA_V_INT ? a->v_int : a->v_float\
+            OPERATOR b->type == VIA_V_INT ? b->v_int : b->v_float\
+    )
+
+#define PREFIX_OP(OPERATOR)\
+    OP(\
+        OPERATOR(a->v_int, b->v_int),\
+        OPERATOR(\
+            a->type == VIA_V_INT ? a->v_int : a->v_float,\
+            b->type == VIA_V_INT ? b->v_int : b->v_float\
+        )\
+    )
+
+void via_b_add(struct via_vm* vm) {
+    INFIX_OP(+)
+}
+
+void via_b_sub(struct via_vm* vm) {
+    INFIX_OP(-)
+}
+
+void via_b_mul(struct via_vm* vm) {
+    INFIX_OP(*)
+}
+
+void via_b_div(struct via_vm* vm) {
+    INFIX_OP(/)
+}
+
+void via_b_mod(struct via_vm* vm) {
+    const struct via_value* a = via_get(vm, "a");
+    const struct via_value* b = via_get(vm, "b");
+    assert(a->type == VIA_V_INT && b->type == VIA_V_INT);
+    vm->ret = via_make_int(vm, a->v_int % b->v_int);
+}
+
+void via_b_pow(struct via_vm* vm) {
+    PREFIX_OP(pow)
+}
+
+void via_b_sin(struct via_vm* vm) {
+    const struct via_value* a = via_get(vm, "a");
+    assert(a->type == VIA_V_FLOAT);
+    vm->ret = via_make_float(vm, sin(a->v_float));
+}
+
+void via_b_cos(struct via_vm* vm) {
+    const struct via_value* a = via_get(vm, "a");
+    assert(a->type == VIA_V_FLOAT);
+    vm->ret = via_make_float(vm, cos(a->v_float));
+}
+
 struct via_value* via_get(struct via_vm* vm, const char* symbol_name) {
     struct via_value* tmp_acc = vm->acc;
     struct via_value* tmp_ret = vm->ret;
 
-    vm->acc = via_symbol(vm, symbol_name);
+    vm->acc = via_sym(vm, symbol_name);
     via_env_lookup(vm);
     struct via_value* value = vm->ret;
 
@@ -431,6 +573,17 @@ struct via_value* via_get(struct via_vm* vm, const char* symbol_name) {
     vm->ret = tmp_ret;
 
     return value;
+}
+
+struct via_value* via_formals(struct via_vm* vm, ...) {
+    va_list ap;
+    va_start(ap, vm);
+
+    struct via_value* formals = via_list_impl(vm, ap, via_sym_transformer);
+
+    va_end(ap);
+
+    return formals;
 }
 
 void via_push_arg(struct via_vm* vm, struct via_value* val) {
@@ -488,6 +641,87 @@ void via_env_set(
     }
 
     cursor->v_car = via_make_pair(vm, symbol, value);
+}
+
+static void via_mark(struct via_value* value, uint8_t generation) {
+    if (!value || value->generation == generation) {
+        return;
+    }
+    value->generation = generation;
+
+    switch (value->type) {
+    case VIA_V_PAIR:
+    case VIA_V_PROC:
+    case VIA_V_FORM:
+        via_mark(value->v_car, generation);
+        via_mark(value->v_cdr, generation);
+        break;
+    case VIA_V_FRAME:
+    case VIA_V_ARRAY:
+        for (size_t i = 0; i < value->v_size; ++i) {
+            via_mark(value->v_array[i], generation);
+        }
+        break;
+    }
+}
+
+static void via_delete_value(struct via_value* value) {
+    switch (value->type) {
+    case VIA_V_STRING:
+    case VIA_V_SYMBOL:
+        via_free((char*) value->v_string);
+        break;
+    case VIA_V_ARRAY:
+    case VIA_V_FRAME:
+        via_free(value->v_array);
+        break;
+    }
+
+    value->type = VIA_V_INVALID;
+}
+
+static void via_sweep_segment(struct via_segment* segment, uint8_t generation) {
+    if (segment->count) {
+        for (size_t i = 0; i < segment->num_values; ++i) {
+            if (
+                (segment->values[i].type != VIA_V_INVALID)
+                    && segment->values[i].generation != generation
+            ) {
+                via_delete_value(&segment->values[i]);
+                segment->count--;
+            }
+        }
+    }
+
+    if (segment->next) {
+        via_sweep_segment(segment->next, generation);
+    }
+}
+
+void via_garbage_collect(struct via_vm* vm) {
+    // Marking.
+
+    vm->generation++;
+    via_mark(vm->acc, vm->generation);
+    via_mark(vm->ret, vm->generation);
+    for (size_t i = 0; i < VIA_REG_COUNT; ++i) {
+        via_mark(vm->regs[i], vm->generation);
+    }
+    for (size_t i = 0; i < vm->frames_top; ++i) {
+        via_mark(vm->frames[i], vm->generation);
+    }
+    for (size_t i = 0; i < vm->stack_size; ++i) {
+        if (!vm->stack[i] || vm->stack[i]->type == VIA_V_INVALID) {
+            // Top of stack reached, stop iterating.
+            break;
+        }
+        via_mark(vm->stack[i], vm->generation);
+    }
+    via_mark(vm->symbols, vm->generation);
+
+    // Sweeping.
+
+    via_sweep_segment(vm->heap, vm->generation);
 }
 
 struct via_value* via_run(struct via_vm* vm) {

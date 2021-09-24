@@ -44,8 +44,8 @@ FIXTURE(test_eval, "Eval")
     SECTION("Symbol lookup")
         struct via_value* value = via_make_value(vm);
 
-        via_env_set(vm, via_symbol(vm, "test-symbol"), value); 
-        vm->regs[VIA_REG_EXPR] = via_symbol(vm, "test-symbol");
+        via_env_set(vm, via_sym(vm, "test-symbol"), value); 
+        vm->regs[VIA_REG_EXPR] = via_sym(vm, "test-symbol");
 
         result = via_run(vm);
 
@@ -55,13 +55,13 @@ FIXTURE(test_eval, "Eval")
     SECTION("Procedure application")
         struct via_value* formals = via_make_pair(
             vm,
-            via_symbol(vm, "value"),
+            via_sym(vm, "value"),
             NULL
         );
 
         struct via_value* proc = via_make_pair(
             vm,
-            via_symbol(vm, "value"),
+            via_sym(vm, "value"),
             via_make_pair(
                 vm,
                 formals,
@@ -90,14 +90,14 @@ FIXTURE(test_eval, "Eval")
     SECTION("Procedure application (builtin)")
         struct via_value* formals = via_make_pair(
             vm,
-            via_symbol(vm, "a"),
-            via_make_pair(vm, via_symbol(vm, "b"), NULL)
+            via_sym(vm, "a"),
+            via_make_pair(vm, via_sym(vm, "b"), NULL)
         );
         via_register_proc(vm, "test-add", formals, test_add);
 
         vm->regs[VIA_REG_EXPR] = via_make_pair(
             vm,
-            via_symbol(vm, "test-add"),
+            via_sym(vm, "test-add"),
             via_make_pair(
                 vm,
                 via_make_int(vm, 12),
@@ -114,8 +114,8 @@ FIXTURE(test_eval, "Eval")
     SECTION("Special forms")
         vm->regs[VIA_REG_EXPR] = via_make_pair(
             vm,
-            via_symbol(vm, "test-form"),
-            via_make_pair(vm, via_symbol(vm, "test-symbol"), NULL)
+            via_sym(vm, "test-form"),
+            via_make_pair(vm, via_sym(vm, "test-symbol"), NULL)
         );
 
         SECTION("Native") 
@@ -126,12 +126,12 @@ FIXTURE(test_eval, "Eval")
                 vm,
                 via_make_pair(
                     vm,
-                    via_symbol(vm, "car"),
+                    via_sym(vm, "car"),
                     via_make_pair(
                         vm,
                         via_make_pair(
                             vm,
-                            via_symbol(vm, "context"),
+                            via_sym(vm, "context"),
                             NULL
                         ),
                         NULL
@@ -141,18 +141,18 @@ FIXTURE(test_eval, "Eval")
             );
             form->type = VIA_V_FORM;
 
-            via_env_set(vm, via_symbol(vm, "test-form"), form);
+            via_env_set(vm, via_sym(vm, "test-form"), form);
 
             result = via_run(vm);
 
-            REQUIRE(result == via_symbol(vm, "test-symbol"));
+            REQUIRE(result == via_sym(vm, "test-symbol"));
         END_SECTION
 
         SECTION("Built in")
             via_register_form(vm, "test-form", test_form);
             result = via_run(vm);
 
-            REQUIRE(result == via_symbol(vm, "test-symbol"));
+            REQUIRE(result == via_sym(vm, "test-symbol"));
         END_SECTION
     END_SECTION
 

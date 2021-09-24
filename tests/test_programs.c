@@ -22,7 +22,7 @@ FIXTURE(test_programs, "Programs")
         result = via_run(vm);
 
         REQUIRE(result);
-        REQUIRE(result == via_symbol(vm, "test-symbol"));
+        REQUIRE(result == via_sym(vm, "test-symbol"));
     END_SECTION
     
     SECTION("Sequence")

@@ -144,7 +144,7 @@ FIXTURE(test_parsing, "Parsing")
 
             expr = via_parse_ctx_program(result);
             REQUIRE(expr);
-            REQUIRE(expr->v_car == via_symbol(vm, "test"));
+            REQUIRE(expr->v_car == via_sym(vm, "test"));
         END_SECTION
     END_SECTION
 
@@ -158,7 +158,7 @@ FIXTURE(test_parsing, "Parsing")
             expr = via_parse_ctx_program(result);
             REQUIRE(expr);
             REQUIRE(expr->v_car->type == VIA_V_PAIR);
-            REQUIRE(expr->v_car->v_car == via_symbol(vm, "test"));
+            REQUIRE(expr->v_car->v_car == via_sym(vm, "test"));
             REQUIRE(!expr->v_car->v_cdr);
         END_SECTION
         SECTION("Complex")
@@ -170,13 +170,13 @@ FIXTURE(test_parsing, "Parsing")
             expr = via_parse_ctx_program(result);
             REQUIRE(expr);
             REQUIRE(expr->v_car->type == VIA_V_PAIR);
-            REQUIRE(expr->v_car->v_car == via_symbol(vm, "test"));
+            REQUIRE(expr->v_car->v_car == via_sym(vm, "test"));
             REQUIRE(expr->v_car->v_cdr->v_car->type == VIA_V_PAIR);
-            REQUIRE(expr->v_car->v_cdr->v_car->v_car == via_symbol(vm, "foo"));
+            REQUIRE(expr->v_car->v_cdr->v_car->v_car == via_sym(vm, "foo"));
             REQUIRE(
-                expr->v_car->v_cdr->v_car->v_cdr->v_car == via_symbol(vm, "bar")
+                expr->v_car->v_cdr->v_car->v_cdr->v_car == via_sym(vm, "bar")
             );
-            REQUIRE(expr->v_car->v_cdr->v_cdr->v_car == via_symbol(vm, "baz"));
+            REQUIRE(expr->v_car->v_cdr->v_cdr->v_car == via_sym(vm, "baz"));
         END_SECTION
     END_SECTION
     

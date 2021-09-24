@@ -6,5 +6,6 @@ set(SOURCES
 )
 add_library(via ${SOURCES})
 target_include_directories(via PUBLIC ../include)
+target_link_libraries(via PUBLIC m)
 set_property(TARGET via PROPERTY C_STANDARD 11)
 
