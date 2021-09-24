@@ -15,7 +15,8 @@ enum via_routines {
     VIA_BEGIN_PROC = 0x50,
     VIA_LOOKUP_PROC = 0x60,
     VIA_APPLY_PROC = 0x80,
-    VIA_ASSUME_PROC = 0x88
+    VIA_ASSUME_PROC = 0x88,
+    VIA_IF_PROC = 0x90
 };
 
 enum via_reg {
@@ -112,6 +113,8 @@ void via_b_quote(struct via_vm* vm);
 void via_b_begin(struct via_vm* vm);
 
 void via_b_yield(struct via_vm* vm);
+
+void via_b_if(struct via_vm* vm);
 
 void via_b_context(struct via_vm* vm);
 

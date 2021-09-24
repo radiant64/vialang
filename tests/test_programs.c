@@ -40,6 +40,21 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result->v_int == 12);
     END_SECTION
 
+    SECTION("Conditional")
+        const char* source = "(if #t (if #f 12 34) 56)";
+        result = via_parse(vm, source);
+
+        REQUIRE(result);
+
+        expr = via_parse_ctx_program(result);
+        vm->regs[VIA_REG_EXPR] = expr->v_car;
+
+        result = via_run(vm);
+
+        REQUIRE(result);
+        REQUIRE(result->v_int == 34);
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 

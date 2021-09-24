@@ -110,6 +110,7 @@ void via_add_core_routines(struct via_vm* vm) {
         via_eval_compound_prg_size
     );
     memcpy(&vm->program[VIA_BEGIN_PROC], via_begin_prg, via_begin_prg_size);
+    memcpy(&vm->program[VIA_IF_PROC], via_if_prg, via_if_prg_size);
 
     // Create trampolines for the builtins.
     vm->program[VIA_LOOKUP_PROC] = _CALLB(lookup_index);
@@ -123,6 +124,7 @@ static void via_add_core_forms(struct via_vm* vm) {
     via_register_form(vm, "quote", via_b_quote);
     via_register_form(vm, "begin", via_b_begin);
     via_register_form(vm, "yield", via_b_yield);
+    via_register_form(vm, "if", via_b_if);
 }
 
 static void via_add_core_procedures(struct via_vm* vm) {
@@ -453,6 +455,10 @@ void via_b_yield(struct via_vm* vm) {
     via_assume_frame(vm);
     
     vm->ret = via_make_pair(vm, vm->ret, via_make_frame(vm));
+}
+
+void via_b_if(struct via_vm* vm) {
+    vm->regs[VIA_REG_PC]->v_int = VIA_IF_PROC;
 }
 
 void via_b_context(struct via_vm* vm) {
@@ -788,6 +794,10 @@ process_state:
     case VIA_OP_LOADPROC:
         DPRINTF("LOADPROC\n");
         vm->acc = vm->regs[VIA_REG_PROC];
+        break;
+    case VIA_OP_LOADCTXT:
+        DPRINTF("LOADCTXT\n");
+        vm->acc = vm->regs[VIA_REG_CTXT];
         break;
     case VIA_OP_SETCTXT:
         DPRINTF("SETCTXT\n");

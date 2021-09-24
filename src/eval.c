@@ -135,3 +135,28 @@ static const via_int via_begin_prg_impl[] = {
 const via_int* via_begin_prg = via_begin_prg_impl;
 const size_t via_begin_prg_size = sizeof(via_begin_prg_impl);
 
+static const via_int via_if_prg_impl[] = {
+    _LOADCTXT(),
+    _CAR(),
+    _SNAP(2),
+        _SETEXPR(),
+        _CALL(VIA_EVAL_PROC),
+    _LOADRET(),
+    _SKIPZ(5),
+        _LOADCTXT(),
+        _CDR(),
+        _CAR(),
+        _SETEXPR(),
+        _CALL(VIA_EVAL_PROC),
+    _LOADCTXT(),
+    _CDR(),
+    _CDR(),
+    _SKIPZ(3),
+        _CAR(),
+        _SETEXPR(),
+        _CALL(VIA_EVAL_PROC),
+    _RETURN()
+};
+const via_int* via_if_prg = via_if_prg_impl;
+const size_t via_if_prg_size = sizeof(via_if_prg_impl);
+
