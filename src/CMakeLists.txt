@@ -1,6 +1,7 @@
 set(SOURCES
     alloc.c
-    eval.c
+    builtin.c
+    native.c
     parse.c
     vm.c
 )

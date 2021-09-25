@@ -108,42 +108,6 @@ void via_register_form(
     void(*func)(struct via_vm*)
 );
 
-void via_b_quote(struct via_vm* vm);
-
-void via_b_begin(struct via_vm* vm);
-
-void via_b_yield(struct via_vm* vm);
-
-void via_b_if(struct via_vm* vm);
-
-void via_b_context(struct via_vm* vm);
-
-void via_b_apply(struct via_vm* vm);
-
-void via_b_cons(struct via_vm* vm);
-
-void via_b_car(struct via_vm* vm);
-
-void via_b_cdr(struct via_vm* vm);
-
-void via_b_list(struct via_vm* vm);
-
-void via_b_add(struct via_vm* vm);
-
-void via_b_sub(struct via_vm* vm);
-
-void via_b_mul(struct via_vm* vm);
-
-void via_b_div(struct via_vm* vm);
-
-void via_b_mod(struct via_vm* vm);
-
-void via_b_pow(struct via_vm* vm);
-
-void via_b_sin(struct via_vm* vm);
-
-void via_b_cos(struct via_vm* vm);
-
 void via_env_lookup(struct via_vm* vm);
 
 struct via_value* via_get(struct via_vm* vm, const char* symbol_name);
@@ -155,6 +119,8 @@ struct via_value* via_formals(struct via_vm* vm, ...);
 void via_push_arg(struct via_vm* vm, struct via_value* val);
 
 struct via_value* via_pop_arg(struct via_vm* vm);
+
+void via_apply(struct via_vm* vm);
 
 struct via_value* via_context(struct via_vm* vm);
 
