@@ -16,7 +16,9 @@ enum via_routines {
     VIA_LOOKUP_PROC = 0x60,
     VIA_APPLY_PROC = 0x80,
     VIA_ASSUME_PROC = 0x88,
-    VIA_IF_PROC = 0x90
+    VIA_IF_PROC = 0x90,
+    VIA_SET_PROC = 0xa8,
+    VIA_SET_ENV_PROC = 0xc0
 };
 
 enum via_reg {
@@ -83,6 +85,13 @@ struct via_value* via_make_pair(
     struct via_value* cdr
 );
 
+struct via_value* via_make_proc(
+    struct via_vm* vm,
+    struct via_value* body,
+    struct via_value* formals,
+    struct via_value* env
+);
+
 struct via_value** via_make_array(struct via_vm* vm, size_t size);
 
 struct via_value* via_make_frame(struct via_vm* vm);
@@ -137,6 +146,8 @@ void via_env_set(
     struct via_value* symbol,
     struct via_value* value
 );
+
+void via_b_env_set(struct via_vm* vm);
 
 void via_garbage_collect(struct via_vm* vm);
 

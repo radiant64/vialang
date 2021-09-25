@@ -102,6 +102,8 @@ void via_add_core_routines(struct via_vm* vm) {
     vm->bound[apply_index] = via_apply;
     const via_int assume_index = vm->num_bound++;
     vm->bound[assume_index] = via_assume_frame;
+    const via_int setenv_index = vm->num_bound++;
+    vm->bound[setenv_index] = via_b_env_set;
 
     // Copy the native routines into memory.
     memcpy(&vm->program[VIA_EVAL_PROC], via_eval_prg, via_eval_prg_size); 
@@ -112,6 +114,7 @@ void via_add_core_routines(struct via_vm* vm) {
     );
     memcpy(&vm->program[VIA_BEGIN_PROC], via_begin_prg, via_begin_prg_size);
     memcpy(&vm->program[VIA_IF_PROC], via_if_prg, via_if_prg_size);
+    memcpy(&vm->program[VIA_SET_PROC], via_set_prg, via_set_prg_size);
 
     // Create trampolines for the builtins.
     vm->program[VIA_LOOKUP_PROC] = _CALLB(lookup_index);
@@ -119,6 +122,8 @@ void via_add_core_routines(struct via_vm* vm) {
     vm->program[VIA_APPLY_PROC] = _CALLB(apply_index);
     vm->program[VIA_APPLY_PROC + 1] = _RETURN();
     vm->program[VIA_ASSUME_PROC] = _CALLB(assume_index);
+    vm->program[VIA_SET_ENV_PROC] = _CALLB(setenv_index);
+    vm->program[VIA_SET_ENV_PROC + 1] = _RETURN();
 }
 
 struct via_vm* via_create_vm() {
@@ -274,7 +279,7 @@ struct via_value* via_make_pair(
     return value;
 }
 
-static struct via_value* via_make_proc(
+struct via_value* via_make_proc(
     struct via_vm* vm,
     struct via_value* body,
     struct via_value* formals,
@@ -454,6 +459,24 @@ struct via_value* via_pop_arg(struct via_vm* vm) {
     return val; 
 }
 
+void via_apply(struct via_vm* vm) {
+    const struct via_value* proc = vm->regs[VIA_REG_PROC];
+    const struct via_value* args = vm->regs[VIA_REG_ARGS];
+
+    struct via_value* formals = proc->v_cdr->v_car;
+    vm->acc = proc->v_cdr->v_cdr->v_car;
+    vm->regs[VIA_REG_ENV] = via_make_env(vm);
+
+    while (formals) {
+        via_env_set(vm, formals->v_car, args->v_car);
+        args = args->v_cdr;
+        formals = formals->v_cdr;
+    }
+
+    vm->regs[VIA_REG_EXPR] = proc->v_car;
+    vm->regs[VIA_REG_PC]->v_int = VIA_EVAL_PROC;
+}
+
 struct via_value* via_context(struct via_vm* vm) {
     return vm->regs[VIA_REG_CTXT];
 }
@@ -499,6 +522,12 @@ void via_env_set(
     }
 
     cursor->v_car = via_make_pair(vm, symbol, value);
+}
+
+void via_b_env_set(struct via_vm* vm) {
+    struct via_value* value = via_pop_arg(vm);
+    via_env_set(vm, vm->acc, value);
+    vm->ret = value;
 }
 
 static void via_mark(struct via_value* value, uint8_t generation) {

@@ -8,39 +8,45 @@ extern "C" {
 
 struct via_vm;
 
-void via_b_quote(struct via_vm* vm);
+void via_f_quote(struct via_vm* vm);
 
-void via_b_begin(struct via_vm* vm);
+void via_f_begin(struct via_vm* vm);
 
-void via_b_yield(struct via_vm* vm);
+void via_f_yield(struct via_vm* vm);
 
-void via_b_if(struct via_vm* vm);
+void via_f_if(struct via_vm* vm);
 
-void via_b_context(struct via_vm* vm);
+void via_f_lambda(struct via_vm* vm);
 
-void via_b_cons(struct via_vm* vm);
+void via_f_set(struct via_vm* vm);
 
-void via_b_car(struct via_vm* vm);
+void via_p_eq(struct via_vm* vm);
 
-void via_b_cdr(struct via_vm* vm);
+void via_p_context(struct via_vm* vm);
 
-void via_b_list(struct via_vm* vm);
+void via_p_cons(struct via_vm* vm);
 
-void via_b_add(struct via_vm* vm);
+void via_p_car(struct via_vm* vm);
 
-void via_b_sub(struct via_vm* vm);
+void via_p_cdr(struct via_vm* vm);
 
-void via_b_mul(struct via_vm* vm);
+void via_p_list(struct via_vm* vm);
 
-void via_b_div(struct via_vm* vm);
+void via_p_add(struct via_vm* vm);
 
-void via_b_mod(struct via_vm* vm);
+void via_p_sub(struct via_vm* vm);
 
-void via_b_pow(struct via_vm* vm);
+void via_p_mul(struct via_vm* vm);
 
-void via_b_sin(struct via_vm* vm);
+void via_p_div(struct via_vm* vm);
 
-void via_b_cos(struct via_vm* vm);
+void via_p_mod(struct via_vm* vm);
+
+void via_p_pow(struct via_vm* vm);
+
+void via_p_sin(struct via_vm* vm);
+
+void via_p_cos(struct via_vm* vm);
 
 void via_add_core_forms(struct via_vm* vm);
 

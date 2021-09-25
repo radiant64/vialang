@@ -14,3 +14,6 @@ extern const size_t via_begin_prg_size;
 extern const via_int* via_if_prg;
 extern const size_t via_if_prg_size;
 
+extern const via_int* via_set_prg;
+extern const size_t via_set_prg_size;
+

@@ -89,6 +89,32 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result->v_float == pow(sin(1.0), cos(1.0)));
     END_SECTION
 
+    SECTION("Factorial")
+        const char* source =
+            "(begin"
+            " (set! factorial"
+            "       (lambda (n)"
+            "               (begin"
+            "                (set! fact-impl"
+            "                      (lambda (n acc)"
+            "                              (if (= n 1)"
+            "                                  acc"
+            "                                  (fact-impl (- n 1) (* acc n)))))"
+            "                (fact-impl n 1))))"
+            " (factorial 5))";
+        result = via_parse(vm, source);
+
+        REQUIRE(result);
+
+        expr = via_parse_ctx_program(result);
+        vm->regs[VIA_REG_EXPR] = expr->v_car;
+
+        result = via_run(vm);
+
+        REQUIRE(result);
+        REQUIRE(result->v_int == 120);
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 
