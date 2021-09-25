@@ -154,6 +154,10 @@ void via_p_cos(struct via_vm* vm) {
     vm->ret = via_make_float(vm, cos(a->v_float));
 }
 
+void via_p_garbage_collect(struct via_vm* vm) {
+    via_garbage_collect(vm);
+}
+
 void via_add_core_forms(struct via_vm* vm) {
     via_register_form(vm, "quote", via_f_quote);
     via_register_form(vm, "begin", via_f_begin);
@@ -179,5 +183,6 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "^", via_formals(vm, "a", "b", NULL), via_p_pow);
     via_register_proc(vm, "sin", via_formals(vm, "a", NULL), via_p_sin);
     via_register_proc(vm, "cos", via_formals(vm, "a", NULL), via_p_cos);
+    via_register_proc(vm, "garbage-collect", NULL, via_p_garbage_collect);
 }
 

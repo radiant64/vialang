@@ -48,6 +48,8 @@ void via_p_sin(struct via_vm* vm);
 
 void via_p_cos(struct via_vm* vm);
 
+void via_p_garbage_collect(struct via_vm* vm);
+
 void via_add_core_forms(struct via_vm* vm);
 
 void via_add_core_procedures(struct via_vm* vm);
