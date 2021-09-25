@@ -136,8 +136,8 @@ static void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "list", NULL, via_b_list);
     via_register_proc(vm, "+", via_formals(vm, "a", "b", NULL), via_b_add);
     via_register_proc(vm, "-", via_formals(vm, "a", "b", NULL), via_b_sub);
-    via_register_proc(vm, "*", via_formals(vm, "a", "b", NULL), via_b_div);
-    via_register_proc(vm, "/", via_formals(vm, "a", "b", NULL), via_b_mul);
+    via_register_proc(vm, "*", via_formals(vm, "a", "b", NULL), via_b_mul);
+    via_register_proc(vm, "/", via_formals(vm, "a", "b", NULL), via_b_div);
     via_register_proc(vm, "%", via_formals(vm, "a", "b", NULL), via_b_mod);
     via_register_proc(vm, "^", via_formals(vm, "a", "b", NULL), via_b_pow);
     via_register_proc(vm, "sin", via_formals(vm, "a", NULL), via_b_sin);
@@ -515,8 +515,8 @@ void via_b_list(struct via_vm* vm) {
 #define INFIX_OP(OPERATOR)\
     OP(\
         a->v_int OPERATOR b->v_int,\
-        a->type == VIA_V_INT ? a->v_int : a->v_float\
-            OPERATOR b->type == VIA_V_INT ? b->v_int : b->v_float\
+        (a->type == VIA_V_INT ? a->v_int : a->v_float)\
+            OPERATOR (b->type == VIA_V_INT ? b->v_int : b->v_float)\
     )
 
 #define PREFIX_OP(OPERATOR)\
@@ -585,7 +585,11 @@ struct via_value* via_formals(struct via_vm* vm, ...) {
     va_list ap;
     va_start(ap, vm);
 
-    struct via_value* formals = via_list_impl(vm, ap, via_sym_transformer);
+    const char* name;
+    struct via_value* formals = NULL;
+    while (name = va_arg(ap, void*)) {
+        formals = via_make_pair(vm, via_sym(vm, name), formals);
+    }
 
     va_end(ap);
 

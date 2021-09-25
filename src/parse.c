@@ -333,7 +333,6 @@ struct via_value* via_parse_sexpr(
         }
 
         while (via_parse_ctx_matched(context)) {
-
             context = via_parse_expr(vm, context);
         }
         context = via_parse_cparen(vm, context);

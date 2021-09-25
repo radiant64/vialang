@@ -7,7 +7,7 @@ static void test_add(struct via_vm* vm) {
     struct via_value* a = via_get(vm, "a");
     struct via_value* b = via_get(vm, "b");
 
-    vm->ret = via_make_int(vm, a->v_int + b->v_int);
+    vm->ret = via_make_int(vm, a->v_int - b->v_int);
 }
 
 static void test_form(struct via_vm* vm) {
@@ -82,25 +82,21 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
     
     SECTION("Procedure application (builtin)")
-        struct via_value* formals = via_make_pair(
-            vm,
-            via_sym(vm, "a"),
-            via_make_pair(vm, via_sym(vm, "b"), NULL)
-        );
+        struct via_value* formals = via_formals(vm, "a", "b", NULL);
         via_register_proc(vm, "test-add", formals, test_add);
 
         vm->regs[VIA_REG_EXPR] = via_list(
             vm,
             via_sym(vm, "test-add"),
-            via_make_int(vm, 12),
             via_make_int(vm, 34),
+            via_make_int(vm, 12),
             NULL
         );
 
         result = via_run(vm);
 
         REQUIRE(result->type == VIA_V_INT);
-        REQUIRE(result->v_int == 46);
+        REQUIRE(result->v_int == 22);
     END_SECTION
 
     SECTION("Special forms")
