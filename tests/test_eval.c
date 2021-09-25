@@ -59,18 +59,12 @@ FIXTURE(test_eval, "Eval")
             NULL
         );
 
-        struct via_value* proc = via_make_pair(
+        struct via_value* proc = via_list(
             vm,
             via_sym(vm, "value"),
-            via_make_pair(
-                vm,
-                formals,
-                via_make_pair(
-                    vm,
-                    vm->regs[VIA_REG_ENV],
-                    NULL
-                )
-            )
+            via_formals(vm, "value", NULL),
+            vm->regs[VIA_REG_ENV],
+            NULL
         );
         proc->type = VIA_V_PROC;
 
@@ -95,14 +89,12 @@ FIXTURE(test_eval, "Eval")
         );
         via_register_proc(vm, "test-add", formals, test_add);
 
-        vm->regs[VIA_REG_EXPR] = via_make_pair(
+        vm->regs[VIA_REG_EXPR] = via_list(
             vm,
             via_sym(vm, "test-add"),
-            via_make_pair(
-                vm,
-                via_make_int(vm, 12),
-                via_make_pair(vm, via_make_int(vm, 34), NULL)
-            )
+            via_make_int(vm, 12),
+            via_make_int(vm, 34),
+            NULL
         );
 
         result = via_run(vm);

@@ -82,7 +82,7 @@ static struct via_value* via_list_impl(
     return list;
 }
 
-static struct via_value* via_list(struct via_vm* vm, ...) {
+struct via_value* via_list(struct via_vm* vm, ...) {
     va_list ap;
     va_start(ap, vm);
 

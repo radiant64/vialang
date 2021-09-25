@@ -148,6 +148,8 @@ void via_env_lookup(struct via_vm* vm);
 
 struct via_value* via_get(struct via_vm* vm, const char* symbol_name);
 
+struct via_value* via_list(struct via_vm* vm, ...);
+
 struct via_value* via_formals(struct via_vm* vm, ...);
 
 void via_push_arg(struct via_vm* vm, struct via_value* val);
