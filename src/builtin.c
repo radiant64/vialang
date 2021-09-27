@@ -56,22 +56,21 @@ void via_f_quote(struct via_vm* vm) {
 }
 
 void via_f_begin(struct via_vm* vm) { 
-    vm->regs[VIA_REG_EXPR] = via_context(vm);
-    vm->regs[VIA_REG_PC]->v_int = VIA_BEGIN_PROC;
+    vm->regs->v_arr[VIA_REG_EXPR] = via_context(vm);
+    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_BEGIN_PROC;
 }
 
 void via_f_yield(struct via_vm* vm) {
-    if (!vm->frames_top) {
-        // TODO: Throw exception
-    }
-    vm->acc = vm->frames[--vm->frames_top];
+    struct via_value* retval = via_make_pair(vm, vm->ret, vm->regs);
+
+    vm->acc = vm->regs->v_arr[VIA_REG_PARN];
     via_assume_frame(vm);
     
     vm->ret = via_make_pair(vm, vm->ret, via_make_frame(vm));
 }
 
 void via_f_if(struct via_vm* vm) {
-    vm->regs[VIA_REG_PC]->v_int = VIA_IF_PROC;
+    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_IF_PROC;
 }
 
 void via_f_lambda(struct via_vm* vm) {
@@ -82,11 +81,11 @@ void via_f_lambda(struct via_vm* vm) {
         cursor = cursor->v_cdr;
     }
     struct via_value* body = via_context(vm)->v_cdr->v_car;
-    vm->ret = via_make_proc(vm, body, formals, vm->regs[VIA_REG_ENV]); 
+    vm->ret = via_make_proc(vm, body, formals, vm->regs->v_arr[VIA_REG_ENV]); 
 }
 
 void via_f_set(struct via_vm* vm) {
-    vm->regs[VIA_REG_PC]->v_int = VIA_SET_PROC;
+    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_SET_PROC;
 }
 
 void via_p_eq(struct via_vm* vm) {
@@ -95,6 +94,10 @@ void via_p_eq(struct via_vm* vm) {
 
 void via_p_context(struct via_vm* vm) {
     vm->ret = via_context(vm);
+}
+
+void via_p_exception(struct via_vm* vm) {
+    vm->ret = via_exception(vm);
 }
 
 void via_p_cons(struct via_vm* vm) {
@@ -112,7 +115,7 @@ void via_p_cdr(struct via_vm* vm) {
 }
 
 void via_p_list(struct via_vm* vm) {
-    vm->ret = vm->regs[VIA_REG_ARGS];
+    vm->ret = vm->regs->v_arr[VIA_REG_ARGS];
 }
 
 void via_p_add(struct via_vm* vm) {
@@ -170,6 +173,7 @@ void via_add_core_forms(struct via_vm* vm) {
 void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "=", via_formals(vm, "a", "b", NULL), via_p_eq);
     via_register_proc(vm, "context", NULL, via_p_context);
+    via_register_proc(vm, "exception", NULL, via_p_exception);
     via_register_proc(vm, "garbage-collect", NULL, via_garbage_collect);
     via_register_proc(vm, "cons", via_formals(vm, "a", "b", NULL), via_p_cons);
     via_register_proc(vm, "car", via_formals(vm, "p", NULL), via_p_car);

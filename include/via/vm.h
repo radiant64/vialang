@@ -10,15 +10,16 @@ extern "C" {
 struct via_value;
 
 enum via_routines {
-    VIA_EVAL_PROC = 0,
+    VIA_EVAL_PROC = 0x01,
     VIA_EVAL_COMPOUND_PROC = 0x20,
     VIA_BEGIN_PROC = 0x50,
     VIA_LOOKUP_PROC = 0x60,
     VIA_APPLY_PROC = 0x80,
+    VIA_EXH_PROC = 0x84,
     VIA_ASSUME_PROC = 0x88,
     VIA_IF_PROC = 0x90,
     VIA_SET_PROC = 0xa8,
-    VIA_SET_ENV_PROC = 0xc0
+    VIA_SET_ENV_PROC = 0xc0,
 };
 
 enum via_reg {
@@ -27,9 +28,11 @@ enum via_reg {
     VIA_REG_ARGS,
     VIA_REG_PROC,
     VIA_REG_ENV,
-    VIA_REG_EXCH,
+    VIA_REG_EXCN,
+    VIA_REG_EXH,
     VIA_REG_SPTR,
     VIA_REG_CTXT,
+    VIA_REG_PARN,
 
     VIA_REG_COUNT
 };
@@ -54,17 +57,13 @@ struct via_vm {
 
     struct via_value* symbols;
 
-    struct via_value* regs[VIA_REG_COUNT];
+    struct via_value* regs;
     struct via_value* acc;
     struct via_value* ret;
 
     struct via_value** stack;
     size_t stack_size;
     
-    struct via_value** frames;
-    size_t frames_size;
-    size_t frames_top;
-
     uint8_t generation;
 };
 
@@ -100,6 +99,8 @@ struct via_value* via_make_env(struct via_vm* vm);
 
 struct via_value* via_sym(struct via_vm* vm, const char* name);
 
+void via_return(struct via_vm* vm, struct via_value* value);
+
 void via_assume_frame(struct via_vm* vm);
 
 via_int via_bind(struct via_vm* vm, void(*func)(struct via_vm*));
@@ -133,6 +134,8 @@ void via_apply(struct via_vm* vm);
 
 struct via_value* via_context(struct via_vm* vm);
 
+struct via_value* via_exception(struct via_vm* vm);
+
 void via_lookup_form(struct via_vm* vm);
 
 void via_set_form(
@@ -150,6 +153,16 @@ void via_env_set(
 void via_b_env_set(struct via_vm* vm);
 
 void via_garbage_collect(struct via_vm* vm);
+
+void via_catch(
+    struct via_vm* vm,
+    struct via_value* predicate,
+    struct via_value* handler
+);
+
+void via_throw(struct via_vm* vm, struct via_value* exception);
+
+void via_default_exception_handler(struct via_vm* vm);
 
 struct via_value* via_run(struct via_vm* vm);
 

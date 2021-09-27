@@ -24,6 +24,8 @@ void via_p_eq(struct via_vm* vm);
 
 void via_p_context(struct via_vm* vm);
 
+void via_p_exception(struct via_vm* vm);
+
 void via_p_cons(struct via_vm* vm);
 
 void via_p_car(struct via_vm* vm);

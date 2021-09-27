@@ -71,7 +71,7 @@ struct via_value {
         };
         struct {
             via_int v_size;
-            struct via_value** v_array;
+            struct via_value** v_arr;
         };
     };
     uint8_t generation;

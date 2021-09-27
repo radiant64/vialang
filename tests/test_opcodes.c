@@ -12,14 +12,14 @@ static void test_builtin(struct via_vm* vm) {
 
 static void test_jumping_builtin(struct via_vm* vm) {
     builtin_called = true;
-    vm->regs[VIA_REG_PC]->v_int = test_addr + 2;
+    vm->regs->v_arr[VIA_REG_PC]->v_int = test_addr + 2;
 }
 
 FIXTURE(test_opcodes, "Opcodes")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
 
-    vm->regs[VIA_REG_PC]->v_int = test_addr;
+    vm->regs->v_arr[VIA_REG_PC]->v_int = test_addr;
 
     struct via_value* result;
     
@@ -32,7 +32,7 @@ FIXTURE(test_opcodes, "Opcodes")
         result = via_run(vm);
 
         REQUIRE(result == vm->ret);
-        REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr);
+        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr);
     END_SECTION
 
     // Ensure the rest of the tests terminate.
@@ -42,7 +42,7 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->program[test_addr] = _NOP();
         result = via_run(vm);
         
-        REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 1);
+        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 1);
     END_SECTION
 
     SECTION("CAR & CDR")
@@ -73,7 +73,7 @@ FIXTURE(test_opcodes, "Opcodes")
             vm->program[test_addr] = _CALL(test_addr + 2);
             result = via_run(vm);
 
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 2);
+            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 2);
         END_SECTION
         
         SECTION("CALLA")
@@ -83,7 +83,7 @@ FIXTURE(test_opcodes, "Opcodes")
             vm->program[test_addr] = _CALLA();
             result = via_run(vm);
 
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 2);
+            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 2);
         END_SECTION
     END_SECTION
 
@@ -100,7 +100,7 @@ FIXTURE(test_opcodes, "Opcodes")
             result = via_run(vm);
 
             REQUIRE(builtin_called);
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == bound + 1);
+            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == bound + 1);
         END_SECTION
 
         SECTION("Jumping")
@@ -109,7 +109,7 @@ FIXTURE(test_opcodes, "Opcodes")
             result = via_run(vm);
 
             REQUIRE(builtin_called);
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 2);
+            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 2);
         END_SECTION
     END_SECTION
 
@@ -135,11 +135,11 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->program[test_addr] = _SETEXPR();
         result = via_run(vm);
 
-        REQUIRE(vm->regs[VIA_REG_EXPR] == foo);
+        REQUIRE(vm->regs->v_arr[VIA_REG_EXPR] == foo);
     END_SECTION
 
     SECTION("LOADEXPR")
-        vm->regs[VIA_REG_EXPR] = foo;
+        vm->regs->v_arr[VIA_REG_EXPR] = foo;
         vm->program[test_addr] = _LOADEXPR();
         result = via_run(vm);
 
@@ -151,11 +151,11 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->program[test_addr] = _SETPROC();
         result = via_run(vm);
 
-        REQUIRE(vm->regs[VIA_REG_PROC] == foo);
+        REQUIRE(vm->regs->v_arr[VIA_REG_PROC] == foo);
     END_SECTION
 
     SECTION("LOADPROC")
-        vm->regs[VIA_REG_PROC] = foo;
+        vm->regs->v_arr[VIA_REG_PROC] = foo;
         vm->program[test_addr] = _LOADPROC();
         result = via_run(vm);
 
@@ -255,14 +255,14 @@ FIXTURE(test_opcodes, "Opcodes")
             foo->v_int = 0;
             result = via_run(vm);
 
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 3);
+            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 3);
         END_SECTION
         
         SECTION("Not zero")
             foo->v_int = 1;
             result = via_run(vm);
 
-            REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 1);
+            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 1);
         END_SECTION
     END_SECTION
 
@@ -281,20 +281,21 @@ FIXTURE(test_opcodes, "Opcodes")
 
     SECTION("SNAP")
         vm->acc = foo;
-        vm->regs[VIA_REG_EXPR] = bar;
-        vm->regs[VIA_REG_ARGS] = foo;
-        vm->regs[VIA_REG_PROC] = foo;
-        vm->regs[VIA_REG_ENV] = foo;
-        vm->regs[VIA_REG_EXCH] = foo;
+        vm->regs->v_arr[VIA_REG_EXPR] = bar;
+        vm->regs->v_arr[VIA_REG_ARGS] = foo;
+        vm->regs->v_arr[VIA_REG_PROC] = foo;
+        vm->regs->v_arr[VIA_REG_ENV] = foo;
+        vm->regs->v_arr[VIA_REG_EXH] = foo;
         vm->program[test_addr] = _SNAP(3);
         vm->program[test_addr + 1] = _SETEXPR();
         vm->program[test_addr + 2] = _RETURN();
+        vm->program[test_addr + 3] = _RETURN();
         vm->program[test_addr + 4] = _RETURN();
 
         result = via_run(vm);
 
-        REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 4);
-        REQUIRE(vm->regs[VIA_REG_EXPR] == bar);
+        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 4);
+        REQUIRE(vm->regs->v_arr[VIA_REG_EXPR] == bar);
     END_SECTION
 
     SECTION("JMP")
@@ -303,7 +304,7 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->program[test_addr + 5] = _JMP(-3);
         result = via_run(vm);
 
-        REQUIRE(vm->regs[VIA_REG_PC]->v_int == test_addr + 3);
+        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 3);
     END_SECTION
 
     SECTION("DROP")
@@ -323,18 +324,18 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->program[test_addr] = _PUSHARG();
         result = via_run(vm);
 
-        REQUIRE(vm->regs[VIA_REG_ARGS]->type == VIA_V_PAIR);
-        REQUIRE(vm->regs[VIA_REG_ARGS]->v_car == foo);
-        REQUIRE(vm->regs[VIA_REG_ARGS]->v_cdr == NULL);
+        REQUIRE(vm->regs->v_arr[VIA_REG_ARGS]->type == VIA_V_PAIR);
+        REQUIRE(vm->regs->v_arr[VIA_REG_ARGS]->v_car == foo);
+        REQUIRE(vm->regs->v_arr[VIA_REG_ARGS]->v_cdr == NULL);
         
         SECTION("POPARG")
             vm->acc = bar;
-            vm->regs[VIA_REG_PC]->v_int = test_addr;
+            vm->regs->v_arr[VIA_REG_PC]->v_int = test_addr;
             vm->program[test_addr] = _POPARG();
             result = via_run(vm);
 
             REQUIRE(vm->acc == foo);
-            REQUIRE(vm->regs[VIA_REG_ARGS] == NULL);
+            REQUIRE(vm->regs->v_arr[VIA_REG_ARGS] == NULL);
         END_SECTION
     END_SECTION
 

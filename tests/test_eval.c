@@ -33,19 +33,19 @@ FIXTURE(test_eval, "Eval")
     struct via_value* result;
 
     SECTION("Literal value")
-        vm->regs[VIA_REG_EXPR] = via_make_value(vm);
-        vm->regs[VIA_REG_EXPR]->type = VIA_V_INT;
+        vm->regs->v_arr[VIA_REG_EXPR] = via_make_value(vm);
+        vm->regs->v_arr[VIA_REG_EXPR]->type = VIA_V_INT;
 
         result = via_run(vm);
 
-        REQUIRE(result == vm->regs[VIA_REG_EXPR]);
+        REQUIRE(result == vm->regs->v_arr[VIA_REG_EXPR]);
     END_SECTION
 
     SECTION("Symbol lookup")
         struct via_value* value = via_make_value(vm);
 
         via_env_set(vm, via_sym(vm, "test-symbol"), value); 
-        vm->regs[VIA_REG_EXPR] = via_sym(vm, "test-symbol");
+        vm->regs->v_arr[VIA_REG_EXPR] = via_sym(vm, "test-symbol");
 
         result = via_run(vm);
 
@@ -63,13 +63,13 @@ FIXTURE(test_eval, "Eval")
             vm,
             via_sym(vm, "value"),
             via_formals(vm, "value", NULL),
-            vm->regs[VIA_REG_ENV],
+            vm->regs->v_arr[VIA_REG_ENV],
             NULL
         );
         proc->type = VIA_V_PROC;
 
         // Compound expression
-        vm->regs[VIA_REG_EXPR] = via_make_pair(
+        vm->regs->v_arr[VIA_REG_EXPR] = via_make_pair(
             vm,
             proc,
             via_make_pair(vm, via_make_int(vm, 123), NULL)
@@ -85,7 +85,7 @@ FIXTURE(test_eval, "Eval")
         struct via_value* formals = via_formals(vm, "a", "b", NULL);
         via_register_proc(vm, "test-add", formals, test_add);
 
-        vm->regs[VIA_REG_EXPR] = via_list(
+        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
             vm,
             via_sym(vm, "test-add"),
             via_make_int(vm, 34),
@@ -100,7 +100,7 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Special forms")
-        vm->regs[VIA_REG_EXPR] = via_make_pair(
+        vm->regs->v_arr[VIA_REG_EXPR] = via_make_pair(
             vm,
             via_sym(vm, "test-form"),
             via_make_pair(vm, via_sym(vm, "test-symbol"), NULL)
