@@ -462,12 +462,15 @@ struct via_value* via_formals(struct via_vm* vm, ...) {
 
 struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
     if (!value) {
-        return "()";
+        return via_make_stringview(vm, "()");
     }
 
     char* buf;
     size_t len;
+    size_t offs;
     struct via_value* out;
+    struct via_value* list;
+    struct via_value* cursor;
     switch (value->type) {
     case VIA_V_SYMBOL:
         return value;
@@ -478,7 +481,7 @@ struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
     case VIA_V_NIL:
         return via_make_stringview(vm, "<nil>");
     case VIA_V_INT:
-        OUT_PRINTF("%d", value->v_int);
+        OUT_PRINTF("%" VIA_FMTId, value->v_int);
         return out;
     case VIA_V_FLOAT:
         OUT_PRINTF("%f", value->v_float);
@@ -494,10 +497,47 @@ struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
     case VIA_V_FRAME:
         return via_make_stringview(vm, "<frame>");
     case VIA_V_BUILTIN:
-        OUT_PRINTF("<builtin %x>", value->v_int);
+        OUT_PRINTF("<builtin %" VIA_FMTIx  ">", value->v_int);
         return out;
     case VIA_V_PAIR:
     default:
+        if (value->v_cdr->type == VIA_V_PAIR) {
+            len = 1;
+            list = via_make_pair(vm, via_to_string(vm, value->v_car), NULL);
+            len += strlen(list->v_car->v_string) + 1;
+            cursor = list;
+            while (value->v_cdr) {
+                value = value->v_cdr;
+                cursor->v_cdr = via_make_pair(
+                    vm,
+                    via_to_string(vm, value->v_car),
+                    NULL
+                );
+                cursor = cursor->v_cdr;
+                len += strlen(cursor->v_car->v_string) + 1;
+            }
+            buf = via_malloc(len);
+            
+            buf[0] = '(';
+            offs = 1;
+            cursor = list;
+            while (cursor) {
+                offs += snprintf(
+                    &buf[offs],
+                    len - offs,
+                    "%s ",
+                    cursor->v_car->v_string
+                );
+                cursor = cursor->v_cdr;
+            };
+            buf[len - 1] = ')';
+            buf[len] = '\0';
+
+            out = via_make_string(vm, buf);
+            via_free(buf);
+
+            return out;
+        }
         OUT_PRINTF(
             "(%s %s)",
             via_to_string(vm, value->v_car)->v_string,

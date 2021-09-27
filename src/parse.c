@@ -198,6 +198,9 @@ static via_int via_copy_string(const char* c, char* dest) {
         }
         c++;
     }
+    if (dest) {
+        dest[len] = '\0';
+    }
 
     return len;
 }
@@ -212,7 +215,7 @@ struct via_value* via_parse_string(
         return via_parse_ctx_make_unmatched(vm, context);
     }
 
-    char* buffer = via_malloc(len + 1);
+    char* buffer = via_malloc(len);
     c += via_copy_string(c, buffer) + 2;
     struct via_value* val = via_make_value(vm);
     val->type = VIA_V_STRING;
