@@ -34,6 +34,8 @@ void via_p_cdr(struct via_vm* vm);
 
 void via_p_list(struct via_vm* vm);
 
+void via_p_display(struct via_vm* vm);
+
 void via_p_add(struct via_vm* vm);
 
 void via_p_sub(struct via_vm* vm);

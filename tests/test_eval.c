@@ -158,8 +158,8 @@ FIXTURE(test_eval, "Eval")
         
         result = via_run(vm);
 
-        REQUIRE(result->type == VIA_V_INT);
-        REQUIRE(result->v_int == 123);
+        REQUIRE(result->type == VIA_V_STRING);
+        REQUIRE(strcmp(result->v_string, "123") == 0);
     END_SECTION
 
     via_free_vm(vm);

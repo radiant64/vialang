@@ -451,6 +451,62 @@ struct via_value* via_formals(struct via_vm* vm, ...) {
     return formals;
 }
 
+#define OUT_PRINTF(...)\
+    do {\
+        len = snprintf(buf, 0, __VA_ARGS__) + 1;\
+        buf = via_malloc(len);\
+        snprintf(buf, len, __VA_ARGS__);\
+        out = via_make_string(vm, buf);\
+        via_free(buf);\
+    } while(0);
+
+struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
+    if (!value) {
+        return "()";
+    }
+
+    char* buf;
+    size_t len;
+    struct via_value* out;
+    switch (value->type) {
+    case VIA_V_SYMBOL:
+        return value;
+    case VIA_V_INVALID:
+        return via_make_stringview(vm, "<INVALID>");
+    case VIA_V_UNDEFINED:
+        return via_make_stringview(vm, "<UNDEFINED>");
+    case VIA_V_NIL:
+        return via_make_stringview(vm, "<nil>");
+    case VIA_V_INT:
+        OUT_PRINTF("%d", value->v_int);
+        return out;
+    case VIA_V_FLOAT:
+        OUT_PRINTF("%f", value->v_float);
+        return out;
+    case VIA_V_BOOL:
+        return via_make_stringview(vm, value->v_bool ? "#t" : "#f");
+    case VIA_V_STRING:
+    case VIA_V_STRINGVIEW:
+        OUT_PRINTF("\"%s\"", value->v_string);
+        return out;
+    case VIA_V_ARRAY:
+        return via_make_stringview(vm, "<array>");
+    case VIA_V_FRAME:
+        return via_make_stringview(vm, "<frame>");
+    case VIA_V_BUILTIN:
+        OUT_PRINTF("<builtin %x>", value->v_int);
+        return out;
+    case VIA_V_PAIR:
+    default:
+        OUT_PRINTF(
+            "(%s %s)",
+            via_to_string(vm, value->v_car)->v_string,
+            via_to_string(vm, value->v_cdr)->v_string
+        );
+        return out;
+    }
+}
+
 void via_push_arg(struct via_vm* vm, struct via_value* val) {
     vm->regs->v_arr[VIA_REG_ARGS] = via_make_pair(
         vm,
@@ -639,7 +695,7 @@ void via_throw(struct via_vm* vm, struct via_value* exception) {
 }
 
 void via_default_exception_handler(struct via_vm* vm) {
-    via_return_outer(vm, via_exception(vm));
+    via_return_outer(vm, via_to_string(vm, via_exception(vm)));
 }
 
 struct via_value* via_run(struct via_vm* vm) {

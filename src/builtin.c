@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 
 #define OP(INTOP, FLOATOP)\
     const struct via_value* a = via_get(vm, "a");\
@@ -118,6 +119,10 @@ void via_p_list(struct via_vm* vm) {
     vm->ret = vm->regs->v_arr[VIA_REG_ARGS];
 }
 
+void via_p_display(struct via_vm* vm) {
+    fprintf(stdout, "%s\n", via_to_string(vm, via_pop_arg(vm))->v_string);
+}
+
 void via_p_add(struct via_vm* vm) {
     INFIX_OP(+)
 }
@@ -179,6 +184,7 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "car", via_formals(vm, "p", NULL), via_p_car);
     via_register_proc(vm, "cdr", via_formals(vm, "p", NULL), via_p_cdr);
     via_register_proc(vm, "list", NULL, via_p_list);
+    via_register_proc(vm, "display", NULL, via_p_display);
     via_register_proc(vm, "+", via_formals(vm, "a", "b", NULL), via_p_add);
     via_register_proc(vm, "-", via_formals(vm, "a", "b", NULL), via_p_sub);
     via_register_proc(vm, "*", via_formals(vm, "a", "b", NULL), via_p_mul);

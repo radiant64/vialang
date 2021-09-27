@@ -126,6 +126,8 @@ struct via_value* via_list(struct via_vm* vm, ...);
 
 struct via_value* via_formals(struct via_vm* vm, ...);
 
+struct via_value* via_to_string(struct via_vm* vm, struct via_value* value);
+
 void via_push_arg(struct via_vm* vm, struct via_value* val);
 
 struct via_value* via_pop_arg(struct via_vm* vm);
