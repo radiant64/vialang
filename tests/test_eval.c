@@ -26,6 +26,10 @@ static void test_context(struct via_vm* vm) {
     vm->ret = via_context(vm);
 }
 
+static void test_throw(struct via_vm* vm) {
+    via_throw(vm, via_make_int(vm, 123));
+}
+
 FIXTURE(test_eval, "Eval")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
@@ -142,6 +146,20 @@ FIXTURE(test_eval, "Eval")
 
             REQUIRE(result == via_sym(vm, "test-symbol"));
         END_SECTION
+    END_SECTION
+
+    SECTION("Exceptions")
+        via_register_proc(vm, "throw-proc", NULL, test_throw);
+        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
+            vm,
+            via_sym(vm, "throw-proc"),
+            NULL
+        );
+        
+        result = via_run(vm);
+
+        REQUIRE(result->type == VIA_V_INT);
+        REQUIRE(result->v_int == 123);
     END_SECTION
 
     via_free_vm(vm);

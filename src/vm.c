@@ -366,9 +366,10 @@ struct via_value* via_sym(struct via_vm* vm, const char* name) {
     return cursor->v_cdr->v_car;
 }
 
-void via_return(struct via_vm* vm, struct via_value* value) {
+void via_return_outer(struct via_vm* vm, struct via_value* value) {
     vm->ret = value;
-    vm->regs->v_arr[VIA_REG_PC] = 0;
+    vm->regs = vm->regs->v_arr[VIA_REG_PARN];
+    vm->regs->v_arr[VIA_REG_PC]->v_int = 0;
 }
 
 void via_assume_frame(struct via_vm* vm) {
@@ -638,7 +639,7 @@ void via_throw(struct via_vm* vm, struct via_value* exception) {
 }
 
 void via_default_exception_handler(struct via_vm* vm) {
-    via_return(vm, via_exception(vm));
+    via_return_outer(vm, via_exception(vm));
 }
 
 struct via_value* via_run(struct via_vm* vm) {

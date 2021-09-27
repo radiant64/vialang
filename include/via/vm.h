@@ -99,7 +99,7 @@ struct via_value* via_make_env(struct via_vm* vm);
 
 struct via_value* via_sym(struct via_vm* vm, const char* name);
 
-void via_return(struct via_vm* vm, struct via_value* value);
+void via_return_outer(struct via_vm* vm, struct via_value* value);
 
 void via_assume_frame(struct via_vm* vm);
 
