@@ -4,7 +4,7 @@
 #include <via/vm.h>
 
 static const via_int via_eval_prg_impl[] = {
-    _LOADEXPR(),
+    _LOAD(VIA_REG_EXPR),
 
     // Check if the value is a frame, if true assume the frame.
     _PUSH(),
@@ -50,7 +50,7 @@ const via_int* via_eval_prg = via_eval_prg_impl;
 const size_t via_eval_prg_size = sizeof(via_eval_prg_impl);
 
 static const via_int via_eval_compound_prg_impl[] = {
-    _LOADEXPR(),
+    _LOAD(VIA_REG_EXPR),
     _CAR(),
 
     // Check if the compound expression is a special form. Special forms are
@@ -69,12 +69,12 @@ static const via_int via_eval_compound_prg_impl[] = {
         // replacing the current frame.
         _FORMP(),
         _SKIPZ(7),
-            _LOADEXPR(),
+            _LOAD(VIA_REG_EXPR),
             _CDR(),
-            _SETCTXT(),
+            _SET(VIA_REG_CTXT),
             _LOADRET(),
             _CAR(),
-            _SETEXPR(),
+            _SET(VIA_REG_EXPR),
             _CALL(VIA_EVAL_PROC),
         _LOADRET(),
         _JMP(2),
@@ -83,26 +83,26 @@ static const via_int via_eval_compound_prg_impl[] = {
     // Regular form; procedure application.
     // Start out by evaluating the procedure value.
     _SNAP(2),
-        _SETEXPR(),
+        _SET(VIA_REG_EXPR),
         _CALL(VIA_EVAL_PROC),
     // Set the PROC register to the result, and load the original expression
     // in the accumulator.
     _LOADRET(),
-    _SETPROC(),
-    _LOADEXPR(),
+    _SET(VIA_REG_PROC),
+    _LOAD(VIA_REG_EXPR),
 
     // Iterate over the rest of the expression and evaluate the terms as
     // arguments.
     _CDR(),
-    _SETEXPR(), 
+    _SET(VIA_REG_EXPR), 
     _SKIPZ(8), // No more arguments? Branch out of the loop.
         _SNAP(3),
             _CAR(),
-            _SETEXPR(),
+            _SET(VIA_REG_EXPR),
             _CALL(VIA_EVAL_PROC),
         _LOADRET(),
         _PUSHARG(),
-        _LOADEXPR(),
+        _LOAD(VIA_REG_EXPR),
         _JMP(-11), // Loop back to _CDR().
 
     // Procedure and arguments have been evaluated, calling apply to bind to
@@ -113,66 +113,25 @@ const via_int* via_eval_compound_prg = via_eval_compound_prg_impl;
 const size_t via_eval_compound_prg_size = sizeof(via_eval_compound_prg_impl);
 
 static const via_int via_begin_prg_impl[] = {
-    _LOADEXPR(),
+    _LOAD(VIA_REG_EXPR),
     _CDR(),
     _SKIPZ(9),
         _SNAP(4),
-            _LOADEXPR(),
+            _LOAD(VIA_REG_EXPR),
             _CAR(),
-            _SETEXPR(),
+            _SET(VIA_REG_EXPR),
             _CALL(VIA_EVAL_PROC),
-        _LOADEXPR(),
+        _LOAD(VIA_REG_EXPR),
         _CDR(),
-        _SETEXPR(),
+        _SET(VIA_REG_EXPR),
         _JMP(-10), // Loop back to the first _CDR().
 
     // Last expression; do a frame-replacing tail call.
-    _LOADEXPR(),
+    _LOAD(VIA_REG_EXPR),
     _CAR(),
-    _SETEXPR(),
+    _SET(VIA_REG_EXPR),
     _CALL(VIA_EVAL_PROC)
 };
 const via_int* via_begin_prg = via_begin_prg_impl;
 const size_t via_begin_prg_size = sizeof(via_begin_prg_impl);
-
-static const via_int via_if_prg_impl[] = {
-    _LOADCTXT(),
-    _CAR(),
-    _SNAP(2),
-        _SETEXPR(),
-        _CALL(VIA_EVAL_PROC),
-    _LOADRET(),
-    _SKIPZ(5),
-        _LOADCTXT(),
-        _CDR(),
-        _CAR(),
-        _SETEXPR(),
-        _CALL(VIA_EVAL_PROC),
-    _LOADCTXT(),
-    _CDR(),
-    _CDR(),
-    _SKIPZ(3),
-        _CAR(),
-        _SETEXPR(),
-        _CALL(VIA_EVAL_PROC),
-    _RETURN()
-};
-const via_int* via_if_prg = via_if_prg_impl;
-const size_t via_if_prg_size = sizeof(via_if_prg_impl);
-
-static const via_int via_set_prg_impl[] = {
-    _LOADCTXT(),
-    _CDR(),
-    _CAR(),
-    _SNAP(2),
-        _SETEXPR(),
-        _CALL(VIA_EVAL_PROC),
-    _LOADRET(),
-    _PUSHARG(),
-    _LOADCTXT(),
-    _CAR(),
-    _CALL(VIA_SET_ENV_PROC),
-};
-const via_int* via_set_prg = via_set_prg_impl;
-const size_t via_set_prg_size = sizeof(via_set_prg_impl);
 

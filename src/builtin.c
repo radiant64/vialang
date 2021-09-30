@@ -71,7 +71,33 @@ void via_f_yield(struct via_vm* vm) {
 }
 
 void via_f_if(struct via_vm* vm) {
-    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_IF_PROC;
+    static const via_int code[] = {
+        _LOAD(VIA_REG_CTXT),
+        _CAR(),
+        _SNAP(2),
+            _SET(VIA_REG_EXPR),
+            _CALL(VIA_EVAL_PROC),
+        _LOADRET(),
+        _SKIPZ(5),
+            _LOAD(VIA_REG_CTXT),
+            _CDR(),
+            _CAR(),
+            _SET(VIA_REG_EXPR),
+            _CALL(VIA_EVAL_PROC),
+        _LOAD(VIA_REG_CTXT),
+        _CDR(),
+        _CDR(),
+        _SKIPZ(3),
+            _CAR(),
+            _SET(VIA_REG_EXPR),
+            _CALL(VIA_EVAL_PROC),
+        _RETURN()
+    };
+    static via_int routine = 0;
+    if (!routine) {
+//        routine = via_assemble(vm, code, sizeof(code));
+    }
+    vm->regs->v_arr[VIA_REG_PC]->v_int = routine;
 }
 
 void via_f_lambda(struct via_vm* vm) {
@@ -85,8 +111,63 @@ void via_f_lambda(struct via_vm* vm) {
     vm->ret = via_make_proc(vm, body, formals, vm->regs->v_arr[VIA_REG_ENV]); 
 }
 
+static void via_cont_f_set(struct via_vm* vm) {
+    struct via_value* value = via_pop_arg(vm);
+    via_env_set(vm, via_pop(vm), value);
+    vm->ret = value;
+}
+
 void via_f_set(struct via_vm* vm) {
-    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_SET_PROC;
+    static via_int bound = 0;
+    static via_int routine = 0;
+    if (!bound) {
+        bound = via_bind(vm, via_cont_f_set);
+        const via_int code[] = {
+            _LOAD(VIA_REG_CTXT),
+            _CDR(),
+            _CAR(),
+            _SNAP(2),
+                _SET(VIA_REG_EXPR),
+                _CALL(VIA_EVAL_PROC),
+            _LOADRET(),
+            _PUSHARG(),
+            _LOAD(VIA_REG_CTXT),
+            _CAR(),
+            _PUSH(),
+            _CALL(bound),
+            _RETURN()
+        };
+//        routine = via_assemble(vm, code, sizeof(code));
+    }
+    vm->regs->v_arr[VIA_REG_PC]->v_int = routine;
+}
+
+void via_f_catch(struct via_vm* vm) {
+    via_catch(vm, via_context(vm)->v_car, via_context(vm)->v_cdr->v_car);
+}
+
+static void via_cont_f_throw(struct via_vm* vm) {
+    via_throw(vm, via_pop(vm));
+}
+
+void via_f_throw(struct via_vm* vm) {
+    static via_int bound = 0;
+    static via_int routine = 0;
+    if (!bound) {
+        bound = via_bind(vm, via_cont_f_throw);
+        const via_int code[] = {
+            _LOAD(VIA_REG_CTXT),
+            _CAR(),
+            _SNAP(2),
+                _SET(VIA_REG_EXPR),
+                _CALL(VIA_EVAL_PROC),
+            _LOADRET(),
+            _PUSH(),
+            _CALL(bound)
+        };
+        routine = via_assemble(vm, code, sizeof(code));
+    }
+    vm->regs->v_arr[VIA_REG_PC]->v_int = routine;
 }
 
 void via_p_eq(struct via_vm* vm) {

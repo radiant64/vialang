@@ -15,11 +15,7 @@ enum via_routines {
     VIA_BEGIN_PROC = 0x50,
     VIA_LOOKUP_PROC = 0x60,
     VIA_APPLY_PROC = 0x80,
-    VIA_EXH_PROC = 0x84,
     VIA_ASSUME_PROC = 0x88,
-    VIA_IF_PROC = 0x90,
-    VIA_SET_PROC = 0xa8,
-    VIA_SET_ENV_PROC = 0xc0,
 };
 
 enum via_reg {
@@ -47,9 +43,14 @@ struct via_segment {
 struct via_vm {
     struct via_segment* heap;
 
-    via_int* program;
-    size_t write_cursor;
+    via_opcode* program;
+    via_int write_cursor;
     size_t program_cap;
+    
+    char** labels;
+    via_int* label_addrs;
+    size_t labels_count;
+    size_t labels_cap;
 
     void(**bound)(struct via_vm*);
     size_t num_bound;
@@ -128,6 +129,10 @@ struct via_value* via_formals(struct via_vm* vm, ...);
 
 struct via_value* via_to_string(struct via_vm* vm, struct via_value* value);
 
+void via_push(struct via_vm* vm, struct via_value* value);
+
+struct via_value* via_pop(struct via_vm* vm);
+
 void via_push_arg(struct via_vm* vm, struct via_value* val);
 
 struct via_value* via_pop_arg(struct via_vm* vm);
@@ -158,7 +163,7 @@ void via_garbage_collect(struct via_vm* vm);
 
 void via_catch(
     struct via_vm* vm,
-    struct via_value* predicate,
+    struct via_value* expr,
     struct via_value* handler
 );
 

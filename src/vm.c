@@ -20,12 +20,8 @@
 #define SEGMENT_SIZE 32
 #define DEFAULT_STACKSIZE 256
 #define DEFAULT_BOUND_SIZE 2048
-#define DEFAULT_PROGRAM_SIZE 8192
-#define DEFAULT_WRITE_START 512
-
-#define STACK_PUSH(vm, value)\
-    (vm->stack[vm->regs->v_arr[VIA_REG_SPTR]->v_int++] = value)
-#define STACK_POP(vm) (vm->stack[--(vm->regs->v_arr[VIA_REG_SPTR]->v_int)])
+#define DEFAULT_PROGRAM_SIZE 512
+#define DEFAULT_LABELS_CAP 16
 
 static struct via_segment* via_create_segment(size_t size) {
     struct via_segment* segment = via_calloc(1, sizeof(struct via_segment));
@@ -105,8 +101,6 @@ void via_add_core_routines(struct via_vm* vm) {
     vm->bound[apply_index] = via_apply;
     const via_int assume_index = vm->num_bound++;
     vm->bound[assume_index] = via_assume_frame;
-    const via_int setenv_index = vm->num_bound++;
-    vm->bound[setenv_index] = via_b_env_set;
 
     // Copy the native routines into memory.
     memcpy(&vm->program[VIA_EVAL_PROC], via_eval_prg, via_eval_prg_size); 
@@ -116,8 +110,6 @@ void via_add_core_routines(struct via_vm* vm) {
         via_eval_compound_prg_size
     );
     memcpy(&vm->program[VIA_BEGIN_PROC], via_begin_prg, via_begin_prg_size);
-    memcpy(&vm->program[VIA_IF_PROC], via_if_prg, via_if_prg_size);
-    memcpy(&vm->program[VIA_SET_PROC], via_set_prg, via_set_prg_size);
 
     // Create trampolines for the builtins.
     vm->program[VIA_LOOKUP_PROC] = _CALLB(lookup_index);
@@ -125,8 +117,6 @@ void via_add_core_routines(struct via_vm* vm) {
     vm->program[VIA_APPLY_PROC] = _CALLB(apply_index);
     vm->program[VIA_APPLY_PROC + 1] = _RETURN();
     vm->program[VIA_ASSUME_PROC] = _CALLB(assume_index);
-    vm->program[VIA_SET_ENV_PROC] = _CALLB(setenv_index);
-    vm->program[VIA_SET_ENV_PROC + 1] = _RETURN();
 }
 
 struct via_vm* via_create_vm() {
@@ -137,17 +127,26 @@ struct via_vm* via_create_vm() {
             goto cleanup_vm;
         }
 
-        vm->program = via_calloc(DEFAULT_PROGRAM_SIZE, sizeof(via_int));
+        vm->program = via_calloc(DEFAULT_PROGRAM_SIZE, sizeof(via_opcode));
         if (!vm->program) {
             goto cleanup_heap;
         }
-        vm->write_cursor = 0x200;
         vm->program_cap = DEFAULT_PROGRAM_SIZE;
+
+        vm->labels = via_malloc(DEFAULT_LABELS_CAP * sizeof(char*));
+        if (!vm->labels) {
+            goto cleanup_program;
+        }
+        vm->label_addrs = via_malloc(DEFAULT_LABELS_CAP * sizeof(via_int));
+        if (!vm->label_addrs) {
+            goto cleanup_labels;
+        }
+        vm->labels_cap = DEFAULT_LABELS_CAP;
 
         vm->bound =
             via_calloc(DEFAULT_BOUND_SIZE, sizeof(void(*)(struct via_vm*)));
         if (!vm->bound) {
-            goto cleanup_program;
+            goto cleanup_label_addrs;
         }
         vm->bound_cap = DEFAULT_BOUND_SIZE;
 
@@ -175,6 +174,12 @@ cleanup_stack:
 
 cleanup_bound:
     via_free(vm->bound);
+
+cleanup_label_addrs:
+    via_free(vm->label_addrs);
+
+cleanup_labels:
+    via_free(vm->labels);
 
 cleanup_program:
     via_free(vm->program);
@@ -547,6 +552,14 @@ struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
     }
 }
 
+void via_push(struct via_vm* vm, struct via_value* value) {
+    vm->stack[vm->regs->v_arr[VIA_REG_SPTR]->v_int++] = value;
+}
+
+struct via_value* via_pop(struct via_vm* vm) {
+    return vm->stack[--(vm->regs->v_arr[VIA_REG_SPTR]->v_int)];
+}
+
 void via_push_arg(struct via_vm* vm, struct via_value* val) {
     vm->regs->v_arr[VIA_REG_ARGS] = via_make_pair(
         vm,
@@ -774,8 +787,8 @@ process_state:
         vm->regs->v_arr[VIA_REG_PC]->v_int = op >> 8;
         DPRINTF("-------------\n");
         goto process_state;
-    case VIA_OP_CALLA:
-        DPRINTF("CALLA (acc = %04x)\n", vm->acc->v_int);
+    case VIA_OP_CALLACC:
+        DPRINTF("CALLACC (acc = %04x)\n", vm->acc->v_int);
         vm->regs->v_arr[VIA_REG_PC]->v_int = vm->acc->v_int;
         DPRINTF("-------------\n");
         goto process_state;
@@ -790,6 +803,14 @@ process_state:
             goto process_state;
         }
         break;
+    case VIA_OP_SET:
+        DPRINTF("SET %d\n", op >> 8);
+        vm->regs->v_arr[op >> 8] = vm->acc;
+        break;
+    case VIA_OP_LOAD:
+        DPRINTF("LOAD %d\n", op >> 8);
+        vm->acc = vm->regs->v_arr[op >> 8];
+        break;
     case VIA_OP_SETRET:
         DPRINTF("SETRET\n");
         vm->ret = vm->acc;
@@ -797,30 +818,6 @@ process_state:
     case VIA_OP_LOADRET:
         DPRINTF("LOADRET\n");
         vm->acc = vm->ret;
-        break;
-    case VIA_OP_SETEXPR:
-        DPRINTF("SETEXPR\n");
-        vm->regs->v_arr[VIA_REG_EXPR] = vm->acc;
-        break;
-    case VIA_OP_LOADEXPR:
-        DPRINTF("LOADEXPR\n");
-        vm->acc = vm->regs->v_arr[VIA_REG_EXPR];
-        break;
-    case VIA_OP_SETPROC:
-        DPRINTF("SETPROC\n");
-        vm->regs->v_arr[VIA_REG_PROC] = vm->acc;
-        break;
-    case VIA_OP_LOADPROC:
-        DPRINTF("LOADPROC\n");
-        vm->acc = vm->regs->v_arr[VIA_REG_PROC];
-        break;
-    case VIA_OP_LOADCTXT:
-        DPRINTF("LOADCTXT\n");
-        vm->acc = vm->regs->v_arr[VIA_REG_CTXT];
-        break;
-    case VIA_OP_SETCTXT:
-        DPRINTF("SETCTXT\n");
-        vm->regs->v_arr[VIA_REG_CTXT] = vm->acc;
         break;
     case VIA_OP_PAIRP:
         DPRINTF("PAIRP\n");
@@ -907,15 +904,15 @@ process_state:
         goto process_state;
     case VIA_OP_PUSH:
         DPRINTF("PUSH\n");
-        STACK_PUSH(vm, vm->acc);
+        via_push(vm, vm->acc);
         break;
     case VIA_OP_POP:
         DPRINTF("POP\n");
-        vm->acc = STACK_POP(vm);
+        vm->acc = via_pop(vm);
         break;
     case VIA_OP_DROP:
         DPRINTF("DROP\n");
-        (void) STACK_POP(vm);
+        (void) via_pop(vm);
         break;
     case VIA_OP_PUSHARG:
         DPRINTF("PUSHARG\n");

@@ -113,6 +113,22 @@ FIXTURE(test_opcodes, "Opcodes")
         END_SECTION
     END_SECTION
 
+    SECTION("SET")
+        vm->acc = foo;
+        vm->program[test_addr] = _SET(VIA_REG_EXPR);
+        result = via_run(vm);
+
+        REQUIRE(vm->regs->v_arr[VIA_REG_EXPR] == foo);
+    END_SECTION
+
+    SECTION("LOAD")
+        vm->regs->v_arr[VIA_REG_EXPR] = foo;
+        vm->program[test_addr] = _LOAD(VIA_REG_EXPR);
+        result = via_run(vm);
+
+        REQUIRE(vm->acc == foo);
+    END_SECTION
+
     SECTION("SETRET")
         vm->acc = foo;
         vm->program[test_addr] = _SETRET();
@@ -125,38 +141,6 @@ FIXTURE(test_opcodes, "Opcodes")
     SECTION("LOADRET")
         vm->ret = foo;
         vm->program[test_addr] = _LOADRET();
-        result = via_run(vm);
-
-        REQUIRE(vm->acc == foo);
-    END_SECTION
-
-    SECTION("SETEXPR")
-        vm->acc = foo;
-        vm->program[test_addr] = _SETEXPR();
-        result = via_run(vm);
-
-        REQUIRE(vm->regs->v_arr[VIA_REG_EXPR] == foo);
-    END_SECTION
-
-    SECTION("LOADEXPR")
-        vm->regs->v_arr[VIA_REG_EXPR] = foo;
-        vm->program[test_addr] = _LOADEXPR();
-        result = via_run(vm);
-
-        REQUIRE(vm->acc == foo);
-    END_SECTION
-
-    SECTION("SETPROC")
-        vm->acc = foo;
-        vm->program[test_addr] = _SETPROC();
-        result = via_run(vm);
-
-        REQUIRE(vm->regs->v_arr[VIA_REG_PROC] == foo);
-    END_SECTION
-
-    SECTION("LOADPROC")
-        vm->regs->v_arr[VIA_REG_PROC] = foo;
-        vm->program[test_addr] = _LOADPROC();
         result = via_run(vm);
 
         REQUIRE(vm->acc == foo);
@@ -287,7 +271,7 @@ FIXTURE(test_opcodes, "Opcodes")
         vm->regs->v_arr[VIA_REG_ENV] = foo;
         vm->regs->v_arr[VIA_REG_EXH] = foo;
         vm->program[test_addr] = _SNAP(3);
-        vm->program[test_addr + 1] = _SETEXPR();
+        vm->program[test_addr + 1] = _SET(VIA_REG_EXPR);
         vm->program[test_addr + 2] = _RETURN();
         vm->program[test_addr + 3] = _RETURN();
         vm->program[test_addr + 4] = _RETURN();

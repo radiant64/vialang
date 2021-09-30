@@ -30,16 +30,12 @@ enum via_op {
     VIA_OP_CAR,
     VIA_OP_CDR,
     VIA_OP_CALL,
-    VIA_OP_CALLA,
+    VIA_OP_CALLACC,
     VIA_OP_CALLB,
+    VIA_OP_SET,
+    VIA_OP_LOAD,
     VIA_OP_SETRET,
     VIA_OP_LOADRET,
-    VIA_OP_SETEXPR,
-    VIA_OP_LOADEXPR,
-    VIA_OP_SETPROC,
-    VIA_OP_LOADPROC,
-    VIA_OP_LOADCTXT,
-    VIA_OP_SETCTXT,
     VIA_OP_PAIRP,
     VIA_OP_SYMBOLP,
     VIA_OP_FORMP,
@@ -59,7 +55,7 @@ enum via_op {
 struct via_value {
     enum via_type type;
     union {
-        via_int v_op;
+        uintptr_t v_op;
         via_int v_int;
         via_float v_float;
         via_bool v_bool;

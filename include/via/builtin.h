@@ -20,6 +20,10 @@ void via_f_lambda(struct via_vm* vm);
 
 void via_f_set(struct via_vm* vm);
 
+void via_f_catch(struct via_vm* vm);
+
+void via_f_throw(struct via_vm* vm);
+
 void via_p_eq(struct via_vm* vm);
 
 void via_p_context(struct via_vm* vm);

@@ -1,5 +1,6 @@
 set(SOURCES
     alloc.c
+    assembler.c
     builtin.c
     native.c
     parse.c
