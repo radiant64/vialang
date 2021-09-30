@@ -71,23 +71,23 @@ static via_int via_asm_local_lookup(
 }
 
 static via_int via_asm_register(const char* name) {
-    if (strcmp(name, "expr") == 0) {
+    if (strcmp(name, "!expr") == 0) {
         return VIA_REG_EXPR;
-    } else if (strcmp(name, "args") == 0) {
+    } else if (strcmp(name, "!args") == 0) {
         return VIA_REG_ARGS;
-    } else if (strcmp(name, "proc") == 0) {
+    } else if (strcmp(name, "!proc") == 0) {
         return VIA_REG_PROC;
-    } else if (strcmp(name, "env") == 0) {
+    } else if (strcmp(name, "!env") == 0) {
         return VIA_REG_ENV;
-    } else if (strcmp(name, "excn") == 0) {
+    } else if (strcmp(name, "!excn") == 0) {
         return VIA_REG_EXCN;
-    } else if (strcmp(name, "exh") == 0) {
+    } else if (strcmp(name, "!exh") == 0) {
         return VIA_REG_EXH;
-    } else if (strcmp(name, "sptr") == 0) {
+    } else if (strcmp(name, "!sptr") == 0) {
         return VIA_REG_SPTR;
-    } else if (strcmp(name, "ctxt") == 0) {
+    } else if (strcmp(name, "!ctxt") == 0) {
         return VIA_REG_CTXT;
-    } else if (strcmp(name, "parn") == 0) {
+    } else if (strcmp(name, "!parn") == 0) {
         return VIA_REG_PARN;
     }
 
@@ -105,7 +105,7 @@ static struct via_program* via_asm_parse_instr(
     via_bool has_arg = true;
     const char* c = p->cursor;
 
-    static const char const* op_arg_f = "%8[a-zA-Z] %80[a-zA-Z0-9@_-]%n";
+    static const char const* op_arg_f = "%8[a-zA-Z]%*[ \t]%80[a-zA-Z0-9@!_-]%n";
     static const char const* op_f = "%8[a-zA-Z]%n";
     // Instruction with operand.
     if (!sscanf(c, op_arg_f, op, arg, &len) || len == 0) {
@@ -116,7 +116,11 @@ static struct via_program* via_asm_parse_instr(
         }
         has_arg = false;
     }
-    
+    if (c[len] == ':') {
+        p->status = VIA_ASM_SYNTAX_ERROR;
+        return p;
+    }
+
     if (generate_code) {
         via_opcode* dest = &p->code[p->code_size];
         if (has_arg) {
@@ -124,7 +128,7 @@ static struct via_program* via_asm_parse_instr(
             char* end;
             via_int num_arg = strtol(arg, &end, 10);
             if (arg == end) {
-                if (arg[0] == ':') {
+                if (arg[0] == '!') {
                     num_arg = via_asm_register(arg);
                 } else {
                     num_arg = via_asm_local_lookup(vm, p, arg);
@@ -136,7 +140,8 @@ static struct via_program* via_asm_parse_instr(
                 return p;
             }
 
-            via_int rel_arg = (num_arg - p->target_addr) << 8; 
+            via_int rel_arg =
+                (num_arg - (p->target_addr + p->code_size + 1)) << 8; 
             num_arg = num_arg << 8;
 
             if (strcmp("call", op) == 0) {
@@ -148,11 +153,11 @@ static struct via_program* via_asm_parse_instr(
             } else if (strcmp("load", op) == 0) {
                 *dest = VIA_OP_LOAD | num_arg;
             } else if (strcmp("skipz", op) == 0) {
-                *dest = VIA_OP_SKIPZ | (arg == end) ? rel_arg : num_arg;
+                *dest = VIA_OP_SKIPZ | ((arg == end) ? rel_arg : num_arg);
             } else if (strcmp("snap", op) == 0) {
-                *dest = VIA_OP_SNAP | (arg == end) ? rel_arg : num_arg;
+                *dest = VIA_OP_SNAP | ((arg == end) ? rel_arg : num_arg);
             } else if (strcmp("jmp", op) == 0) {
-                *dest = VIA_OP_JMP | (arg == end) ? rel_arg : num_arg;
+                *dest = VIA_OP_JMP | ((arg == end) ? rel_arg : num_arg);
             } else {
                 p->status = VIA_ASM_SYNTAX_ERROR;
                 return p;
@@ -275,7 +280,8 @@ static struct via_program* via_asm_first_pass(
 ) {
     while (*p->cursor && p->status == VIA_ASM_SUCCESS) {
         p = via_asm_parse_instr(vm, via_asm_parse_space(p), false);
-        if (p->status != VIA_ASM_SUCCESS) {
+        if (p->status == VIA_ASM_SYNTAX_ERROR) {
+            p->status = VIA_ASM_SUCCESS;
             p = via_asm_parse_label(p, true);
         }
        
@@ -306,7 +312,8 @@ static struct via_program* via_asm_second_pass(
 ) {
     while (*p->cursor && p->status == VIA_ASM_SUCCESS) {
         p = via_asm_parse_instr(vm, via_asm_parse_space(p), true);
-        if (p->status != VIA_ASM_SUCCESS) {
+        if (p->status == VIA_ASM_SYNTAX_ERROR) {
+            p->status = VIA_ASM_SUCCESS;
             p = via_asm_parse_label(p, false);
         }
        
@@ -383,7 +390,9 @@ struct via_assembly_result via_assemble(struct via_vm* vm, const char* source) {
     for (size_t i = 0, j = vm->labels_count; i < program->labels_count; ++i) {
         if (program->labels[i][0] != '@') {
             vm->labels[j] = program->labels[i];
-            vm->label_addrs[j++] = program->label_addrs[i];
+            vm->label_addrs[j++] =
+                program->label_addrs[i] + program->target_addr;
+            vm->labels_count++;
         } else {
             via_free(program->labels[i]);
         }
