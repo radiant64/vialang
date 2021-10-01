@@ -1,9 +1,9 @@
 #include <via/vm.h>
 
-#include "native.h"
+#include <builtin-native.h>
 
 #include <via/alloc.h>
-#include <via/asm_macros.h>
+#include <via/assembler.h>
 #include <via/builtin.h>
 
 #include <assert.h>
@@ -112,7 +112,7 @@ void via_add_core_routines(struct via_vm* vm) {
     via_bind(vm, "throw-proc", via_throw_proc);
 
     // Assemble the native routines.
-    struct via_assembly_result result = via_assemble(vm, 
+    struct via_assembly_result result = via_assemble(vm, builtin_prg); 
 }
 
 struct via_vm* via_create_vm() {
@@ -264,6 +264,14 @@ struct via_value* via_make_stringview(struct via_vm* vm, const char* v_string) {
     value->v_string = v_string;
 }
 
+struct via_value* via_make_builtin(struct via_vm* vm, via_int v_builtin) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_BUILTIN;
+    value->v_int = v_builtin;
+
+    return value;
+}
+
 struct via_value* via_make_pair(
     struct via_vm* vm,
     struct via_value* car,
@@ -291,13 +299,9 @@ struct via_value* via_make_proc(
     return value;
 }
 
-static struct via_value* via_make_builtin(
-    struct via_vm* vm,
-    via_int v_builtin
-) {
-    struct via_value* value = via_make_value(vm);
-    value->type = VIA_V_BUILTIN;
-    value->v_int = v_builtin;
+struct via_value* via_make_form(struct via_vm* vm, struct via_value* body) {
+    struct via_value* value = via_make_pair(vm, body, NULL);
+    value->type = VIA_V_FORM;
 
     return value;
 }
@@ -383,7 +387,7 @@ via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
     vm->bound[index] = func;
 
     char buffer[256];
-    snprintf(buffer, 256, "%s:\ncallb %d\nreturn", index);
+    snprintf(buffer, 256, "%s:\ncallb %" VIA_FMTId "\nreturn", name, index);
     struct via_assembly_result result = via_assemble(vm, buffer); 
 
     return result.addr;
@@ -392,6 +396,7 @@ via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
 void via_register_proc(
     struct via_vm* vm,
     const char* symbol,
+    const char* asm_label,
     struct via_value* formals,
     void(*func)(struct via_vm*)
 ) {
@@ -400,7 +405,25 @@ void via_register_proc(
         via_sym(vm, symbol),
         via_make_proc(
             vm,
-            via_make_builtin(vm, via_bind(vm, func)),
+            via_make_builtin(vm, via_bind(vm, asm_label, func)),
+            formals,
+            vm->regs->v_arr[VIA_REG_ENV]
+        )
+    );
+}
+
+void via_register_native_proc(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label,
+    struct via_value* formals
+) {
+    via_env_set(
+        vm,
+        via_sym(vm, symbol),
+        via_make_proc(
+            vm,
+            via_make_builtin(vm, via_asm_label_lookup(vm, asm_label)),
             formals,
             vm->regs->v_arr[VIA_REG_ENV]
         )
@@ -410,11 +433,27 @@ void via_register_proc(
 void via_register_form(
     struct via_vm* vm,
     const char* symbol,
+    const char* asm_label,
     void(*func)(struct via_vm*)
 ) {
     struct via_value* form = via_make_pair(
         vm,
-        via_make_builtin(vm, via_bind(vm, func)),
+        via_make_builtin(vm, via_bind(vm, asm_label, func)),
+        NULL
+    );
+    form->type = VIA_V_FORM;
+
+    via_env_set(vm, via_sym(vm, symbol), form);
+}
+
+void via_register_native_form(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label
+) {
+    struct via_value* form = via_make_pair(
+        vm,
+        via_make_builtin(vm, via_asm_label_lookup(vm, asm_label)),
         NULL
     );
     form->type = VIA_V_FORM;
@@ -460,7 +499,14 @@ struct via_value* via_formals(struct via_vm* vm, ...) {
         via_free(buf);\
     } while(0);
 
-struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
+static struct via_value* via_to_string_impl(
+    struct via_vm* vm,
+    struct via_value* value,
+    via_int depth
+) {
+    if (depth > 10) {
+        return via_make_stringview(vm, "...");
+    }
     if (!value) {
         return via_make_stringview(vm, "()");
     }
@@ -501,22 +547,22 @@ struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
         return out;
     case VIA_V_PAIR:
     default:
-        if (value->v_cdr->type == VIA_V_PAIR) {
+        if (value->v_cdr && value->v_cdr->type == VIA_V_PAIR) {
             len = 1;
-            list = via_make_pair(vm, via_to_string(vm, value->v_car), NULL);
+            list = via_make_pair(vm, via_to_string_impl(vm, value->v_car, depth + 1), NULL);
             len += strlen(list->v_car->v_string) + 1;
             cursor = list;
-            while (value->v_cdr) {
+            while (value->v_cdr && depth < 6) {
                 value = value->v_cdr;
                 cursor->v_cdr = via_make_pair(
                     vm,
-                    via_to_string(vm, value->v_car),
+                    via_to_string_impl(vm, value->v_car, ++depth),
                     NULL
                 );
                 cursor = cursor->v_cdr;
                 len += strlen(cursor->v_car->v_string) + 1;
             }
-            buf = via_malloc(len);
+            buf = via_malloc(len + 1);
             
             buf[0] = '(';
             offs = 1;
@@ -540,11 +586,17 @@ struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
         }
         OUT_PRINTF(
             "(%s %s)",
-            via_to_string(vm, value->v_car)->v_string,
-            via_to_string(vm, value->v_cdr)->v_string
+            via_to_string_impl(vm, value->v_car, depth + 1)->v_string,
+            value->v_cdr
+                ? via_to_string_impl(vm, value->v_cdr, depth + 1)->v_string
+                : ""
         );
         return out;
     }
+}
+
+struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
+    return via_to_string_impl(vm, value, 0);
 }
 
 void via_push(struct via_vm* vm, struct via_value* value) {
@@ -584,7 +636,7 @@ void via_apply(struct via_vm* vm) {
     }
 
     vm->regs->v_arr[VIA_REG_EXPR] = proc->v_car;
-    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_EVAL_PROC;
+    vm->regs->v_arr[VIA_REG_PC]->v_int = via_asm_label_lookup(vm, "eval-proc");
 }
 
 struct via_value* via_context(struct via_vm* vm) {
@@ -751,12 +803,13 @@ struct via_value* via_run(struct via_vm* vm) {
     via_int old_pc;
     via_int op;
     
+    vm->regs->v_arr[VIA_REG_PC]->v_int = via_asm_label_lookup(vm, "eval-proc");
     via_catch(
         vm,
         vm->regs->v_arr[VIA_REG_EXPR],
         via_make_builtin(
             vm,
-            via_bind(vm, via_default_exception_handler)
+            via_bind(vm, "default-except-proc", via_default_exception_handler)
         )
     );
     // Replace the current frame with the catch clause. 
@@ -799,19 +852,27 @@ process_state:
         }
         break;
     case VIA_OP_SET:
-        DPRINTF("SET %d\n", op >> 8);
+        DPRINTF(
+            "SET %d > %s\n",
+            op >> 8,
+            via_to_string(vm, vm->acc)->v_string
+        );
         vm->regs->v_arr[op >> 8] = vm->acc;
         break;
     case VIA_OP_LOAD:
-        DPRINTF("LOAD %d\n", op >> 8);
+        DPRINTF(
+            "LOAD %d < %s\n",
+            op >> 8,
+            via_to_string(vm, vm->regs->v_arr[op >> 8])->v_string
+        );
         vm->acc = vm->regs->v_arr[op >> 8];
         break;
     case VIA_OP_SETRET:
-        DPRINTF("SETRET\n");
+        DPRINTF("SETRET > %s\n", via_to_string(vm, vm->acc)->v_string);
         vm->ret = vm->acc;
         break;
     case VIA_OP_LOADRET:
-        DPRINTF("LOADRET\n");
+        DPRINTF("LOADRET < %s\n", via_to_string(vm, vm->ret)->v_string);
         vm->acc = vm->ret;
         break;
     case VIA_OP_PAIRP:
@@ -894,28 +955,30 @@ process_state:
         goto process_state;
     case VIA_OP_JMP:
         DPRINTF("JMP %d\n", op >> 8);
-        vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8);
+        vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8) + 1;
         DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_PUSH:
-        DPRINTF("PUSH\n");
+        DPRINTF("PUSH > %s\n", via_to_string(vm, vm->acc)->v_string);
         via_push(vm, vm->acc);
         break;
     case VIA_OP_POP:
-        DPRINTF("POP\n");
-        vm->acc = via_pop(vm);
+        val = via_pop(vm);
+        DPRINTF("POP < %s\n", via_to_string(vm, val)->v_string);
+        vm->acc = val;
         break;
     case VIA_OP_DROP:
         DPRINTF("DROP\n");
         (void) via_pop(vm);
         break;
     case VIA_OP_PUSHARG:
-        DPRINTF("PUSHARG\n");
+        DPRINTF("PUSHARG > %s\n", via_to_string(vm, vm->acc)->v_string);
         via_push_arg(vm, vm->acc);
         break;
     case VIA_OP_POPARG:
-        DPRINTF("POPARG\n");
-        vm->acc = via_pop_arg(vm);
+        val = via_pop_arg(vm);
+        DPRINTF("POPARG < %s\n", via_to_string(vm, val)->v_string);
+        vm->acc = val;
         break;
     }
 

@@ -1,6 +1,6 @@
 #include <via/builtin.h>
 
-#include <via/asm_macros.h>
+#include <via/assembler.h>
 #include <via/vm.h>
 
 #include <assert.h>
@@ -56,11 +56,6 @@ void via_f_quote(struct via_vm* vm) {
     vm->ret = via_context(vm)->v_car;
 }
 
-void via_f_begin(struct via_vm* vm) { 
-    vm->regs->v_arr[VIA_REG_EXPR] = via_context(vm);
-    vm->regs->v_arr[VIA_REG_PC]->v_int = VIA_BEGIN_PROC;
-}
-
 void via_f_yield(struct via_vm* vm) {
     struct via_value* retval = via_make_pair(vm, vm->ret, vm->regs);
 
@@ -68,36 +63,6 @@ void via_f_yield(struct via_vm* vm) {
     via_assume_frame(vm);
     
     vm->ret = via_make_pair(vm, vm->ret, via_make_frame(vm));
-}
-
-void via_f_if(struct via_vm* vm) {
-    static const via_int code[] = {
-        _LOAD(VIA_REG_CTXT),
-        _CAR(),
-        _SNAP(2),
-            _SET(VIA_REG_EXPR),
-            _CALL(VIA_EVAL_PROC),
-        _LOADRET(),
-        _SKIPZ(5),
-            _LOAD(VIA_REG_CTXT),
-            _CDR(),
-            _CAR(),
-            _SET(VIA_REG_EXPR),
-            _CALL(VIA_EVAL_PROC),
-        _LOAD(VIA_REG_CTXT),
-        _CDR(),
-        _CDR(),
-        _SKIPZ(3),
-            _CAR(),
-            _SET(VIA_REG_EXPR),
-            _CALL(VIA_EVAL_PROC),
-        _RETURN()
-    };
-    static via_int routine = 0;
-    if (!routine) {
-//        routine = via_assemble(vm, code, sizeof(code));
-    }
-    vm->regs->v_arr[VIA_REG_PC]->v_int = routine;
 }
 
 void via_f_lambda(struct via_vm* vm) {
@@ -111,53 +76,8 @@ void via_f_lambda(struct via_vm* vm) {
     vm->ret = via_make_proc(vm, body, formals, vm->regs->v_arr[VIA_REG_ENV]); 
 }
 
-void via_f_set(struct via_vm* vm) {
-    static via_int bound = 0;
-    static via_int routine = 0;
-    if (!bound) {
-        bound = via_bind(vm, via_cont_f_set);
-        const via_int code[] = {
-            _LOAD(VIA_REG_CTXT),
-            _CDR(),
-            _CAR(),
-            _SNAP(2),
-                _SET(VIA_REG_EXPR),
-                _CALL(VIA_EVAL_PROC),
-            _LOADRET(),
-            _PUSHARG(),
-            _LOAD(VIA_REG_CTXT),
-            _CAR(),
-            _PUSH(),
-            _CALL(bound),
-            _RETURN()
-        };
-//        routine = via_assemble(vm, code, sizeof(code));
-    }
-    vm->regs->v_arr[VIA_REG_PC]->v_int = routine;
-}
-
 void via_f_catch(struct via_vm* vm) {
     via_catch(vm, via_context(vm)->v_car, via_context(vm)->v_cdr->v_car);
-}
-
-void via_f_throw(struct via_vm* vm) {
-    static via_int bound = 0;
-    static via_int routine = 0;
-    if (!bound) {
-        bound = via_bind(vm, via_cont_f_throw);
-        const via_int code[] = {
-            _LOAD(VIA_REG_CTXT),
-            _CAR(),
-            _SNAP(2),
-                _SET(VIA_REG_EXPR),
-                _CALL(VIA_EVAL_PROC),
-            _LOADRET(),
-            _PUSH(),
-            _CALL(bound)
-        };
-        routine = via_assemble(vm, code, sizeof(code));
-    }
-    vm->regs->v_arr[VIA_REG_PC]->v_int = routine;
 }
 
 void via_p_eq(struct via_vm* vm) {
@@ -238,32 +158,40 @@ void via_p_garbage_collect(struct via_vm* vm) {
 }
 
 void via_add_core_forms(struct via_vm* vm) {
-    via_register_form(vm, "quote", via_f_quote);
-    via_register_form(vm, "begin", via_f_begin);
-    via_register_form(vm, "yield", via_f_yield);
-    via_register_form(vm, "if", via_f_if);
-    via_register_form(vm, "lambda", via_f_lambda);
-    via_register_form(vm, "set!", via_f_set);
+    via_register_native_form(vm, "begin", "begin-proc");
+    via_register_native_form(vm, "if", "if-proc");
+    via_register_native_form(vm, "set!", "set-proc");
+
+    via_register_form(vm, "quote", "quote-proc", via_f_quote);
+    via_register_form(vm, "yield", "yield-proc", via_f_yield);
+    via_register_form(vm, "lambda", "lambda-proc", via_f_lambda);
 }
 
 void via_add_core_procedures(struct via_vm* vm) {
-    via_register_proc(vm, "=", via_formals(vm, "a", "b", NULL), via_p_eq);
-    via_register_proc(vm, "context", NULL, via_p_context);
-    via_register_proc(vm, "exception", NULL, via_p_exception);
-    via_register_proc(vm, "garbage-collect", NULL, via_garbage_collect);
-    via_register_proc(vm, "cons", via_formals(vm, "a", "b", NULL), via_p_cons);
-    via_register_proc(vm, "car", via_formals(vm, "p", NULL), via_p_car);
-    via_register_proc(vm, "cdr", via_formals(vm, "p", NULL), via_p_cdr);
-    via_register_proc(vm, "list", NULL, via_p_list);
-    via_register_proc(vm, "display", NULL, via_p_display);
-    via_register_proc(vm, "+", via_formals(vm, "a", "b", NULL), via_p_add);
-    via_register_proc(vm, "-", via_formals(vm, "a", "b", NULL), via_p_sub);
-    via_register_proc(vm, "*", via_formals(vm, "a", "b", NULL), via_p_mul);
-    via_register_proc(vm, "/", via_formals(vm, "a", "b", NULL), via_p_div);
-    via_register_proc(vm, "%", via_formals(vm, "a", "b", NULL), via_p_mod);
-    via_register_proc(vm, "^", via_formals(vm, "a", "b", NULL), via_p_pow);
-    via_register_proc(vm, "sin", via_formals(vm, "a", NULL), via_p_sin);
-    via_register_proc(vm, "cos", via_formals(vm, "a", NULL), via_p_cos);
-    via_register_proc(vm, "garbage-collect", NULL, via_p_garbage_collect);
+    struct via_value* binary_formals = via_formals(vm, "a", "b", NULL);
+    struct via_value* unary_formals = via_formals(vm, "a", NULL);
+    via_register_proc(vm, "=", "eq-proc", binary_formals, via_p_eq);
+    via_register_proc(vm, "context", "context-proc", NULL, via_p_context);
+    via_register_proc(vm, "exception", "exception-proc", NULL, via_p_exception);
+    via_register_proc(vm, "cons", "cons-proc", binary_formals, via_p_cons);
+    via_register_proc(vm, "car", "car-proc", binary_formals, via_p_car);
+    via_register_proc(vm, "cdr", "cdr-proc", binary_formals, via_p_cdr);
+    via_register_proc(vm, "list", "list-proc", NULL, via_p_list);
+    via_register_proc(vm, "display", "display-proc", NULL, via_p_display);
+    via_register_proc(vm, "+", "add-proc", binary_formals, via_p_add);
+    via_register_proc(vm, "-", "sub-proc", binary_formals, via_p_sub);
+    via_register_proc(vm, "*", "mul-proc", binary_formals, via_p_mul);
+    via_register_proc(vm, "/", "div-proc", binary_formals, via_p_div);
+    via_register_proc(vm, "%", "mod-proc", binary_formals, via_p_mod);
+    via_register_proc(vm, "^", "pow-proc", binary_formals, via_p_pow);
+    via_register_proc(vm, "sin", "sin-proc", unary_formals, via_p_sin);
+    via_register_proc(vm, "cos", "cos-proc", unary_formals, via_p_cos);
+    via_register_proc(
+        vm,
+        "garbage-collect",
+        "gc-proc",
+        NULL,
+        via_p_garbage_collect
+    );
 }
 

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.12)
 
-file(READ ${DATA_FILE} HEX_DATA HEX)
-string(REGEX REPLACE "([A-Fa-f0-9][A-Fa-f0-9])[^$]" "0x\\1," TEMP ${HEX_DATA})
-string(REGEX REPLACE "([A-Fa-f0-9][A-Fa-f0-9])$" "0x\\1" HEX_BYTES ${TEMP})
+file(READ ${DATA_FILE} HEX_DATA HEX ENCODING UTF-8)
+string(REGEX REPLACE "([A-Fa-f0-9][A-Fa-f0-9])" "0x\\1," TEMP ${HEX_DATA})
+string(REGEX REPLACE ",$" "" HEX_BYTES ${TEMP})
 string(REGEX MATCHALL
     "0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,"
     LINES
@@ -33,7 +33,7 @@ extern const size_t ${VAR_NAME}_size\;
 
 set(IMPL "#include \"${HEADER_FILE}\"
 
-static const char ${VAR_NAME}_impl[] = {
+const char ${VAR_NAME}_impl[] = {
 " ${LINES} "
 }\;
 

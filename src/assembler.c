@@ -119,7 +119,7 @@ static struct via_program* via_asm_parse_instr(
         }
         has_arg = false;
     }
-    if (c[len] == ':') {
+    if (!is_whitespace(c[len]) && c[len] != '\n' && c[len] != '\r' && c[len]) {
         p->status = VIA_ASM_SYNTAX_ERROR;
         return p;
     }
@@ -282,7 +282,13 @@ static struct via_program* via_asm_first_pass(
     struct via_program* p
 ) {
     while (*p->cursor && p->status == VIA_ASM_SUCCESS) {
-        p = via_asm_parse_instr(vm, via_asm_parse_space(p), false);
+        p = via_asm_parse_space(p);
+        if (*p->cursor == '\r' || *p->cursor == '\n') {
+            // Syntactically empty line, parse the next one.
+            p = via_asm_parse_endl(p);
+            continue;
+        }
+        p = via_asm_parse_instr(vm, p, false);
         if (p->status == VIA_ASM_SYNTAX_ERROR) {
             p->status = VIA_ASM_SUCCESS;
             p = via_asm_parse_label(p, true);
@@ -314,7 +320,13 @@ static struct via_program* via_asm_second_pass(
     struct via_program* p
 ) {
     while (*p->cursor && p->status == VIA_ASM_SUCCESS) {
-        p = via_asm_parse_instr(vm, via_asm_parse_space(p), true);
+        p = via_asm_parse_space(p);
+        if (*p->cursor == '\r' || *p->cursor == '\n') {
+            // Syntactically empty line, parse the next one.
+            p = via_asm_parse_endl(p);
+            continue;
+        }
+        p = via_asm_parse_instr(vm, p, true);
         if (p->status == VIA_ASM_SYNTAX_ERROR) {
             p->status = VIA_ASM_SUCCESS;
             p = via_asm_parse_label(p, false);

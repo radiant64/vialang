@@ -79,6 +79,7 @@ eval-compound-proc:
     @no-special-form:
         loadret
         jmp @regular-form
+@skip-special-form-check:
     pop
 
     ; Regular form; procedure application.
@@ -117,7 +118,9 @@ eval-compound-proc:
 ;-------------------------------------------------------------------------------
 begin-proc:
 ;-------------------------------------------------------------------------------
-    load !expr
+    load !ctxt
+    pusharg
+    set !expr
 @begin-eval-loop:
     cdr
     skipz @begin-last-expression
@@ -134,6 +137,8 @@ begin-proc:
 
 @begin-last-expression:
     ; Replace the current frame.
+    load !expr
+    car
     set !expr
     call eval-proc
 

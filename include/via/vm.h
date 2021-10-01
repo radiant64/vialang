@@ -81,6 +81,7 @@ struct via_value* via_make_float(struct via_vm* vm, via_float v_float);
 struct via_value* via_make_bool(struct via_vm* vm, via_bool v_bool);
 struct via_value* via_make_string(struct via_vm* vm, const char* v_string);
 struct via_value* via_make_stringview(struct via_vm* vm, const char* v_string);
+struct via_value* via_make_builtin(struct via_vm* vm, via_int v_builtin);
 struct via_value* via_make_pair(
     struct via_vm* vm,
     struct via_value* car,
@@ -93,6 +94,8 @@ struct via_value* via_make_proc(
     struct via_value* formals,
     struct via_value* env
 );
+
+struct via_value* via_make_form(struct via_vm* vm, struct via_value* body);
 
 struct via_value** via_make_array(struct via_vm* vm, size_t size);
 
@@ -111,14 +114,29 @@ via_int via_bind(struct via_vm* vm, const char* name, via_bindable func);
 void via_register_proc(
     struct via_vm* vm,
     const char* symbol,
+    const char* asm_label,
     struct via_value* formals,
     void(*func)(struct via_vm*)
+);
+
+void via_register_native_proc(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label,
+    struct via_value* formals
 );
 
 void via_register_form(
     struct via_vm* vm,
     const char* symbol,
+    const char* asm_label,
     void(*func)(struct via_vm*)
+);
+
+void via_register_native_form(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label
 );
 
 void via_env_lookup(struct via_vm* vm);

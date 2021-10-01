@@ -14,13 +14,13 @@ macro(add_embedded BASENAME DATA_FILE VARNAME)
         VERBATIM
     )
     add_library(${BASENAME} "${PATH}/${BASENAME}.c")
+    target_include_directories(${BASENAME} PUBLIC "${PATH}")
 endmacro()
 
 set(SOURCES
     alloc.c
     assembler.c
     builtin.c
-    native.c
     parse.c
     vm.c
 )
