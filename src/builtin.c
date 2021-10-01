@@ -111,12 +111,6 @@ void via_f_lambda(struct via_vm* vm) {
     vm->ret = via_make_proc(vm, body, formals, vm->regs->v_arr[VIA_REG_ENV]); 
 }
 
-static void via_cont_f_set(struct via_vm* vm) {
-    struct via_value* value = via_pop_arg(vm);
-    via_env_set(vm, via_pop(vm), value);
-    vm->ret = value;
-}
-
 void via_f_set(struct via_vm* vm) {
     static via_int bound = 0;
     static via_int routine = 0;
@@ -144,10 +138,6 @@ void via_f_set(struct via_vm* vm) {
 
 void via_f_catch(struct via_vm* vm) {
     via_catch(vm, via_context(vm)->v_car, via_context(vm)->v_cdr->v_car);
-}
-
-static void via_cont_f_throw(struct via_vm* vm) {
-    via_throw(vm, via_pop(vm));
 }
 
 void via_f_throw(struct via_vm* vm) {

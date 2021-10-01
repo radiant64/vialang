@@ -9,22 +9,22 @@ FIXTURE(test_assembler, "Assembler")
 
     SECTION("Instructions (no operands)")
         const char* source =
-            "  nop \n"
-            "  car ; "
-            "  cdr;"
-            "callacc;"
-            "setret;"
-            "loadret;"
-            "pairp;"
-            "symbolp;"
-            "formp;"
-            "framep;"
-            "builtinp;"
-            "return;"
-            "push;"
-            "pop;"
-            "drop;"
-            "pusharg;"
+            "  nop ; This is a comment\n"
+            "  car \n"
+            "  cdr\n"
+            "callacc\n"
+            "setret\n"
+            "loadret\n"
+            "pairp\n"
+            "symbolp\n"
+            "formp\n"
+            "framep\n"
+            "builtinp\n"
+            "return\n"
+            "push\n"
+            "pop\n"
+            "drop\n"
+            "pusharg\n"
             "poparg";
         struct via_assembly_result result = via_assemble(vm, source);
 
@@ -56,13 +56,13 @@ FIXTURE(test_assembler, "Assembler")
     SECTION("Labels & operands")
         const char* source =
             "foo:\n"
-            "    call foo;"
-            "    load !args;"
-            "    skipz @bar;"
-            "        snap @bar;"
-            "            jmp foo;"
-            "@bar:;"
-            "    callb @bar;"
+            "    call foo\n"
+            "    load !args\n"
+            "    skipz @bar\n"
+            "        snap @bar\n"
+            "            jmp foo\n"
+            "@bar:\n"
+            "    callb @bar\n"
             "    set !exh";
         struct via_assembly_result result = via_assemble(vm, source);
         const via_opcode expected[] = {

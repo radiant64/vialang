@@ -25,17 +25,20 @@ struct via_program {
 };
 
 static via_bool is_whitespace(char c) {
-    return c == ' ' || c == '\t';
+    return c == ' ' || c == '\t' || c == ';';
 }
 
-static struct via_program* via_asm_parse_space(
-    struct via_program* program
-) {
-    while (is_whitespace(*program->cursor)) {
-        program->cursor++;
+static struct via_program* via_asm_parse_space(struct via_program* p) {
+    bool comment = false;
+    const char** c = &p->cursor;
+    while (is_whitespace(**c) || (comment && **c != '\n' && **c != '\r')) {
+        if (**c == ';') {
+            comment = true;
+        }
+        (*c)++;
     }
 
-    return program;
+    return p;
 }
 
 static struct via_program* via_asm_parse_endl(
@@ -48,7 +51,7 @@ static struct via_program* via_asm_parse_endl(
     const char c = *program->cursor;
     if (c == '\r') {
         program->cursor += (program->cursor[1] == '\n') ? 2 : 1;
-    } else if (c == ';' || c == '\n') {
+    } else if (c == '\n') {
         program->cursor += 1;
     } else {
         program->status = VIA_ASM_SYNTAX_ERROR;

@@ -68,6 +68,8 @@ struct via_vm {
     uint8_t generation;
 };
 
+typedef void(*via_bindable)(struct via_vm*);
+
 struct via_vm* via_create_vm();
 
 void via_free_vm(struct via_vm* vm);
@@ -104,7 +106,7 @@ void via_return_outer(struct via_vm* vm, struct via_value* value);
 
 void via_assume_frame(struct via_vm* vm);
 
-via_int via_bind(struct via_vm* vm, void(*func)(struct via_vm*));
+via_int via_bind(struct via_vm* vm, const char* name, via_bindable func);
 
 void via_register_proc(
     struct via_vm* vm,

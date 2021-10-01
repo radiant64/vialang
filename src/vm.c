@@ -90,33 +90,29 @@ struct via_value* via_list(struct via_vm* vm, ...) {
     return list;
 }
 
+static void via_throw_proc(struct via_vm* vm) {
+    via_throw(vm, via_pop(vm));
+}
+
+static void via_env_set_proc(struct via_vm* vm) {
+    struct via_value* value = via_pop_arg(vm);
+    via_env_set(vm, via_pop(vm), value);
+    vm->ret = value;
+}
+
 void via_add_core_routines(struct via_vm* vm) {
-    // Make sure PC 0 == RETURN.
-    vm->program[0] = _RETURN();
+    vm->program[0] = VIA_OP_RETURN;
+    vm->write_cursor = 1;
 
     // Add some builtins.
-    const via_int lookup_index = vm->num_bound++;
-    vm->bound[lookup_index] = via_env_lookup;
-    const via_int apply_index = vm->num_bound++;
-    vm->bound[apply_index] = via_apply;
-    const via_int assume_index = vm->num_bound++;
-    vm->bound[assume_index] = via_assume_frame;
+    via_bind(vm, "lookup-proc", via_env_lookup);
+    via_bind(vm, "apply-proc", via_apply);
+    via_bind(vm, "assume-proc", via_assume_frame);
+    via_bind(vm, "env-set-proc", via_env_set_proc);
+    via_bind(vm, "throw-proc", via_throw_proc);
 
-    // Copy the native routines into memory.
-    memcpy(&vm->program[VIA_EVAL_PROC], via_eval_prg, via_eval_prg_size); 
-    memcpy(
-        &vm->program[VIA_EVAL_COMPOUND_PROC],
-        via_eval_compound_prg,
-        via_eval_compound_prg_size
-    );
-    memcpy(&vm->program[VIA_BEGIN_PROC], via_begin_prg, via_begin_prg_size);
-
-    // Create trampolines for the builtins.
-    vm->program[VIA_LOOKUP_PROC] = _CALLB(lookup_index);
-    vm->program[VIA_LOOKUP_PROC + 1] = _RETURN();
-    vm->program[VIA_APPLY_PROC] = _CALLB(apply_index);
-    vm->program[VIA_APPLY_PROC + 1] = _RETURN();
-    vm->program[VIA_ASSUME_PROC] = _CALLB(assume_index);
+    // Assemble the native routines.
+    struct via_assembly_result result = via_assemble(vm, 
 }
 
 struct via_vm* via_create_vm() {
@@ -382,16 +378,15 @@ void via_assume_frame(struct via_vm* vm) {
     vm->regs = vm->acc;
 }
 
-via_int via_bind(struct via_vm* vm, void(*func)(struct via_vm*)) {
+via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
     const via_int index = vm->num_bound++;
     vm->bound[index] = func;
 
-    const via_int routine = vm->write_cursor;
-    vm->program[routine] = _CALLB(index);
-    vm->program[routine + 1] = _RETURN();
-    vm->write_cursor = routine + 2;
+    char buffer[256];
+    snprintf(buffer, 256, "%s:\ncallb %d\nreturn", index);
+    struct via_assembly_result result = via_assemble(vm, buffer); 
 
-    return routine;
+    return result.addr;
 };
 
 void via_register_proc(
