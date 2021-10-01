@@ -17,35 +17,11 @@
 #define DPRINTF(...) do {  } while (0)
 #endif
 
-#define SEGMENT_SIZE 32
+#define DEFAULT_HEAPSIZE 2048 
 #define DEFAULT_STACKSIZE 256
 #define DEFAULT_BOUND_SIZE 2048
 #define DEFAULT_PROGRAM_SIZE 512
 #define DEFAULT_LABELS_CAP 16
-
-static struct via_segment* via_create_segment(size_t size) {
-    struct via_segment* segment = via_calloc(1, sizeof(struct via_segment));
-    if (segment) {
-        segment->values = via_calloc(size, sizeof(struct via_value));
-        if (!segment->values) {
-            via_free(segment);
-            return NULL;
-        }
-
-        segment->num_values = size;
-    }
-
-    return segment;
-}
-
-static void via_free_segments(struct via_segment* segment) {
-    while (segment) {
-        struct via_segment* next = segment->next;
-        via_free(segment->values);
-        via_free(segment);
-        segment = next;
-    }
-}
 
 static struct via_value* via_value_transformer(struct via_vm* vm, void* value) {
     return value;
@@ -118,10 +94,11 @@ void via_add_core_routines(struct via_vm* vm) {
 struct via_vm* via_create_vm() {
     struct via_vm* vm = via_calloc(1, sizeof(struct via_vm));
     if (vm) {
-        vm->heap = via_create_segment(SEGMENT_SIZE);
+        vm->heap = via_calloc(sizeof(struct via_value*), DEFAULT_HEAPSIZE);
         if (!vm->heap) {
             goto cleanup_vm;
         }
+        vm->heap_cap = DEFAULT_HEAPSIZE;
 
         vm->program = via_calloc(DEFAULT_PROGRAM_SIZE, sizeof(via_opcode));
         if (!vm->program) {
@@ -181,7 +158,7 @@ cleanup_program:
     via_free(vm->program);
 
 cleanup_heap:
-    via_free_segments(vm->heap);
+    via_free(vm->heap);
 
 cleanup_vm:
     via_free(vm);
@@ -190,35 +167,32 @@ cleanup_vm:
 }
 
 struct via_value* via_make_value(struct via_vm* vm) {
-    struct via_segment* segment = vm->heap;
-
-    while (segment->count == segment->num_values && segment->next) {
-        segment = segment->next;
+    size_t i;
+    for (i = 0; i < vm->heap_top && (vm->heap[i] != NULL); ++i) {
     }
 
-    if (segment->count == segment->num_values) {
-        segment->next = via_create_segment(segment->num_values);
-        if (!segment->next) {
+    if (i == vm->heap_cap) {
+        struct via_value** new_heap = via_realloc(
+            vm->heap,
+            sizeof(struct via_value*) * vm->heap_cap * 2
+        );
+        if (!new_heap) {
             return NULL;
         }
-
-        segment = segment->next;
+        vm->heap = new_heap;
+        vm->heap_cap *= 2;
     }
 
-    size_t i;
-    for (i = 0; segment->values[i].type != VIA_V_INVALID; ++i) {
+    if (i > vm->heap_top) {
+        vm->heap_top = i;
     }
-
-    struct via_value* val = &segment->values[i];
+    struct via_value* val = via_calloc(sizeof(struct via_value), 1);
+    vm->heap[i] = val;
     val->type = VIA_V_NIL;
-    val->v_car = NULL;
-    val->v_cdr = NULL;
-    segment->count++;
     return val;
 }
 
 void via_free_vm(struct via_vm* vm) {
-    via_free_segments(vm->heap);
     via_free(vm);
 }
 
@@ -730,24 +704,14 @@ static void via_delete_value(struct via_value* value) {
         break;
     }
 
-    value->type = VIA_V_INVALID;
+    via_free(value);
 }
 
-static void via_sweep_segment(struct via_segment* segment, uint8_t generation) {
-    if (segment->count) {
-        for (size_t i = 0; i < segment->num_values; ++i) {
-            if (
-                (segment->values[i].type != VIA_V_INVALID)
-                    && segment->values[i].generation != generation
-            ) {
-                via_delete_value(&segment->values[i]);
-                segment->count--;
-            }
+static void via_sweep(struct via_vm* vm) {
+    for (size_t i = 0; i < vm->heap_cap; ++i) {
+        if (vm->heap[i] && vm->heap[i]->generation != vm->generation) {
+            via_delete_value(vm->heap[i]);
         }
-    }
-
-    if (segment->next) {
-        via_sweep_segment(segment->next, generation);
     }
 }
 
@@ -771,7 +735,7 @@ void via_garbage_collect(struct via_vm* vm) {
 
     // Sweeping.
 
-    via_sweep_segment(vm->heap, vm->generation);
+    via_sweep(vm);
 }
 
 void via_catch(

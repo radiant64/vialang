@@ -41,7 +41,9 @@ struct via_segment {
 };
 
 struct via_vm {
-    struct via_segment* heap;
+    struct via_value** heap;
+    via_int heap_top;
+    via_int heap_cap;
 
     via_opcode* program;
     via_int write_cursor;
