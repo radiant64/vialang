@@ -40,6 +40,9 @@ struct via_segment {
     struct via_segment* next;
 };
 
+struct via_vm;
+typedef void(*via_bindable)(struct via_vm*);
+
 struct via_vm {
     struct via_value** heap;
     via_int heap_top;
@@ -54,8 +57,8 @@ struct via_vm {
     size_t labels_count;
     size_t labels_cap;
 
-    void(**bound)(struct via_vm*);
-    size_t num_bound;
+    via_bindable* bound;
+    size_t bound_count;
     size_t bound_cap;
 
     struct via_value* symbols;
@@ -69,8 +72,6 @@ struct via_vm {
     
     uint8_t generation;
 };
-
-typedef void(*via_bindable)(struct via_vm*);
 
 struct via_vm* via_create_vm();
 

@@ -357,7 +357,18 @@ void via_assume_frame(struct via_vm* vm) {
 }
 
 via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
-    const via_int index = vm->num_bound++;
+    if (vm->bound_count == vm->bound_cap) {
+        via_bindable* new_bound = via_realloc(
+            vm->bound,
+            sizeof(via_bindable) * vm->bound_cap * 2
+        );
+        if (!new_bound) {
+            return -1;
+        }
+        vm->bound = new_bound;
+        vm->bound_cap *= 2;
+    }
+    const via_int index = vm->bound_count++;
     vm->bound[index] = func;
 
     char buffer[256];
@@ -574,11 +585,26 @@ struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
 }
 
 void via_push(struct via_vm* vm, struct via_value* value) {
+    const via_int top = vm->regs->v_arr[VIA_REG_SPTR]->v_int;
+    if (top == vm->stack_size) {
+        struct via_value** new_stack = via_realloc(
+            vm->stack,
+            sizeof(struct via_value*) * vm->stack_size * 2
+        );
+        if (!new_stack) {
+            // TODO: Throw exception.
+            return;
+        }
+        vm->stack = new_stack;
+        vm->stack_size *= 2;
+    }
     vm->stack[vm->regs->v_arr[VIA_REG_SPTR]->v_int++] = value;
 }
 
 struct via_value* via_pop(struct via_vm* vm) {
-    return vm->stack[--(vm->regs->v_arr[VIA_REG_SPTR]->v_int)];
+    struct via_value* val = vm->stack[--(vm->regs->v_arr[VIA_REG_SPTR]->v_int)];
+    vm->stack[vm->regs->v_arr[VIA_REG_SPTR]->v_int] = NULL;
+    return val;
 }
 
 void via_push_arg(struct via_vm* vm, struct via_value* val) {
@@ -596,6 +622,14 @@ struct via_value* via_pop_arg(struct via_vm* vm) {
 }
 
 void via_apply(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    static struct via_vm* cached_instance = NULL;
+    static via_int eval_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        eval_proc = via_asm_label_lookup(vm, "eval-proc");
+    }
+
     const struct via_value* proc = vm->regs->v_arr[VIA_REG_PROC];
     const struct via_value* args = vm->regs->v_arr[VIA_REG_ARGS];
 
@@ -610,7 +644,7 @@ void via_apply(struct via_vm* vm) {
     }
 
     vm->regs->v_arr[VIA_REG_EXPR] = proc->v_car;
-    vm->regs->v_arr[VIA_REG_PC]->v_int = via_asm_label_lookup(vm, "eval-proc");
+    vm->regs->v_arr[VIA_REG_PC]->v_int = eval_proc;
 }
 
 struct via_value* via_context(struct via_vm* vm) {
@@ -724,11 +758,7 @@ void via_garbage_collect(struct via_vm* vm) {
     for (size_t i = 0; i < VIA_REG_COUNT; ++i) {
         via_mark(vm->regs, vm->generation);
     }
-    for (size_t i = 0; i < vm->stack_size; ++i) {
-        if (!vm->stack[i] || vm->stack[i]->type == VIA_V_INVALID) {
-            // Top of stack reached, stop iterating.
-            break;
-        }
+    for (size_t i = 0; vm->stack[i] && i < vm->stack_size; ++i) {
         via_mark(vm->stack[i], vm->generation);
     }
     via_mark(vm->symbols, vm->generation);
