@@ -475,6 +475,41 @@ struct via_value* via_formals(struct via_vm* vm, ...) {
     return formals;
 }
 
+static via_bool via_list_contains(
+    struct via_value* list,
+    struct via_value* value
+) {
+    if (!list) {
+        return false;
+    }
+
+    do {
+        if (value == list->v_car) {
+            return true;
+        }
+    } while (list && (list = list->v_cdr));
+
+    return false;
+}
+
+static struct via_value* via_list_append(
+    struct via_vm* vm,
+    struct via_value* list,
+    struct via_value* value
+) {
+    struct via_value* head = list;
+    if (!head) {
+        head = via_make_pair(vm, value, NULL);
+    } else {
+        for (; list->v_cdr; list = list->v_cdr) {
+        }
+        
+        list->v_cdr = via_make_pair(vm, value, NULL);
+    }
+
+    return head;
+}
+
 #define OUT_PRINTF(...)\
     do {\
         len = snprintf(buf, 0, __VA_ARGS__) + 1;\
@@ -487,21 +522,29 @@ struct via_value* via_formals(struct via_vm* vm, ...) {
 static struct via_value* via_to_string_impl(
     struct via_vm* vm,
     struct via_value* value,
-    via_int depth
+    struct via_value* sequence,
+    via_bool tail
 ) {
-    if (depth > 10) {
-        return via_make_stringview(vm, "...");
-    }
     if (!value) {
-        return via_make_stringview(vm, "()");
+        return tail
+            ? via_make_stringview(vm, "")
+            : via_make_stringview(vm, "()");
     }
 
     char* buf;
     size_t len;
     size_t offs;
     struct via_value* out;
-    struct via_value* list;
-    struct via_value* cursor;
+    struct via_value* car;
+    struct via_value* cdr;
+
+    const char* fmt = "%s %s";
+    const char* fmt_open = "(%s %s";
+    const char* fmt_dot = "%s . %s)";
+    const char* fmt_pair = "(%s . %s)";
+    const char* fmt_close = "%s)%s";
+    const char* fmt_open_close = "(%s)%s";
+
     switch (value->type) {
     case VIA_V_SYMBOL:
         return value;
@@ -532,56 +575,34 @@ static struct via_value* via_to_string_impl(
         return out;
     case VIA_V_PAIR:
     default:
-        if (value->v_cdr && value->v_cdr->type == VIA_V_PAIR) {
-            len = 1;
-            list = via_make_pair(vm, via_to_string_impl(vm, value->v_car, depth + 1), NULL);
-            len += strlen(list->v_car->v_string) + 1;
-            cursor = list;
-            while (value->v_cdr && depth < 6) {
-                value = value->v_cdr;
-                cursor->v_cdr = via_make_pair(
-                    vm,
-                    via_to_string_impl(vm, value->v_car, ++depth),
-                    NULL
-                );
-                cursor = cursor->v_cdr;
-                len += strlen(cursor->v_car->v_string) + 1;
-            }
-            buf = via_malloc(len + 1);
-            
-            buf[0] = '(';
-            offs = 1;
-            cursor = list;
-            while (cursor) {
-                offs += snprintf(
-                    &buf[offs],
-                    len - offs,
-                    "%s ",
-                    cursor->v_car->v_string
-                );
-                cursor = cursor->v_cdr;
-            };
-            buf[len - 1] = ')';
-            buf[len] = '\0';
-
-            out = via_make_string(vm, buf);
-            via_free(buf);
-
-            return out;
+        if (via_list_contains(sequence, value)) {
+            return via_make_stringview(vm, "<BECOMES CYCLIC>");
         }
-        OUT_PRINTF(
-            "(%s %s)",
-            via_to_string_impl(vm, value->v_car, depth + 1)->v_string,
-            value->v_cdr
-                ? via_to_string_impl(vm, value->v_cdr, depth + 1)->v_string
-                : ""
-        );
+        sequence = via_list_append(vm, sequence, value);
+
+        if (!tail) {
+            if (value->v_cdr && value->v_cdr->type == VIA_V_PAIR) {
+                fmt = fmt_open;
+            } else if (value->v_cdr) {
+                fmt = fmt_pair;
+            } else {
+                fmt = fmt_open_close;
+            }
+        } else if (value->v_cdr && value->v_cdr->type != VIA_V_PAIR) {
+            fmt = fmt_dot;
+        } else if (!value->v_cdr) {
+            fmt = fmt_close;
+        }
+
+        car = via_to_string_impl(vm, value->v_car, sequence, false);
+        cdr = via_to_string_impl(vm, value->v_cdr, sequence, true);
+        OUT_PRINTF(fmt, car->v_string, cdr->v_string);
         return out;
     }
 }
 
 struct via_value* via_to_string(struct via_vm* vm, struct via_value* value) {
-    return via_to_string_impl(vm, value, 0);
+    return via_to_string_impl(vm, value, NULL, false);
 }
 
 void via_push(struct via_vm* vm, struct via_value* value) {
@@ -811,7 +832,7 @@ struct via_value* via_run(struct via_vm* vm) {
 
 process_state:
     op = vm->program[vm->regs->v_arr[VIA_REG_PC]->v_int];
-    DPRINTF("PC %04x: ", vm->regs->v_arr[VIA_REG_PC]->v_int);
+    DPRINTF("PC %04" VIA_FMTIx ": ", vm->regs->v_arr[VIA_REG_PC]->v_int);
     switch (op & 0xff) {
     case VIA_OP_NOP:
         DPRINTF("NOP\n");
@@ -825,17 +846,17 @@ process_state:
         vm->acc = vm->acc->v_cdr;
         break;
     case VIA_OP_CALL:
-        DPRINTF("CALL %04x\n", op >> 8);
+        DPRINTF("CALL %04" VIA_FMTIx "\n", op >> 8);
         vm->regs->v_arr[VIA_REG_PC]->v_int = op >> 8;
         DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_CALLACC:
-        DPRINTF("CALLACC (acc = %04x)\n", vm->acc->v_int);
+        DPRINTF("CALLACC (acc = %04" VIA_FMTIx ")\n", vm->acc->v_int);
         vm->regs->v_arr[VIA_REG_PC]->v_int = vm->acc->v_int;
         DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_CALLB:
-        DPRINTF("CALLB %04x\n", op >> 8);
+        DPRINTF("CALLB %04" VIA_FMTIx "\n", op >> 8);
         old_pc = vm->regs->v_arr[VIA_REG_PC]->v_int;
         vm->bound[op >> 8](vm);
         if (old_pc != vm->regs->v_arr[VIA_REG_PC]->v_int) {
@@ -847,7 +868,7 @@ process_state:
         break;
     case VIA_OP_SET:
         DPRINTF(
-            "SET %d > %s\n",
+            "SET %" VIA_FMTId " > %s\n",
             op >> 8,
             via_to_string(vm, vm->acc)->v_string
         );
@@ -855,7 +876,7 @@ process_state:
         break;
     case VIA_OP_LOAD:
         DPRINTF(
-            "LOAD %d < %s\n",
+            "LOAD %" VIA_FMTId " < %s\n",
             op >> 8,
             via_to_string(vm, vm->regs->v_arr[op >> 8])->v_string
         );
@@ -933,7 +954,7 @@ process_state:
         DPRINTF("-------------\n");
         break;
     case VIA_OP_SNAP:
-        DPRINTF("SNAP %d\n", op >> 8);
+        DPRINTF("SNAP %" VIA_FMTId "\n", op >> 8);
         val = via_make_frame(vm);
         vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8) + 1;
         vm->regs = val; 
@@ -948,7 +969,7 @@ process_state:
         DPRINTF("-------------\n");
         goto process_state;
     case VIA_OP_JMP:
-        DPRINTF("JMP %d\n", op >> 8);
+        DPRINTF("JMP %" VIA_FMTId "\n", op >> 8);
         vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8) + 1;
         DPRINTF("-------------\n");
         goto process_state;
