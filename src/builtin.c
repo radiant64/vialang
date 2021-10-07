@@ -1,6 +1,7 @@
 #include <via/builtin.h>
 
 #include <via/assembler.h>
+#include <via/exceptions.h>
 #include <via/vm.h>
 
 #include <assert.h>
@@ -10,8 +11,19 @@
 #define OP(INTOP, FLOATOP)\
     const struct via_value* a = via_get(vm, "a");\
     const struct via_value* b = via_get(vm, "b");\
-    assert(a->type == VIA_V_INT || a->type == VIA_V_FLOAT);\
-    assert(b->type == VIA_V_INT || b->type == VIA_V_FLOAT);\
+    if (\
+        (a->type < VIA_V_INT || a->type > VIA_V_FLOAT)\
+            || (b->type < VIA_V_INT || b->type > VIA_V_FLOAT)\
+    ) {\
+        via_throw(\
+            vm,\
+            via_except_type_error(\
+                vm,\
+                "Arithmetic operation expects two numeric values"\
+            )\
+        );\
+        return;\
+    }\
     if (a->type == VIA_V_FLOAT || b->type == VIA_V_FLOAT) {\
         vm->ret = via_make_float(vm, FLOATOP);\
     } else {\
@@ -133,7 +145,10 @@ void via_p_div(struct via_vm* vm) {
 void via_p_mod(struct via_vm* vm) {
     const struct via_value* a = via_get(vm, "a");
     const struct via_value* b = via_get(vm, "b");
-    assert(a->type == VIA_V_INT && b->type == VIA_V_INT);
+    if (a->type != VIA_V_INT || b->type != VIA_V_INT) {
+        via_throw(vm, via_except_type_error(vm, "Modulo expects two integers"));
+        return;
+    }
     vm->ret = via_make_int(vm, a->v_int % b->v_int);
 }
 

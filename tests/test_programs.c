@@ -115,6 +115,22 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result->v_int == 120);
     END_SECTION
 
+    SECTION("Arithmetics type error")
+        const char* source = "(+ 43 \"test\")";
+
+        result = via_parse(vm, source);
+
+        REQUIRE(result);
+
+        expr = via_parse_ctx_program(result);
+        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+
+        result = via_run(vm);
+
+        REQUIRE(result);
+        REQUIRE(result->type == VIA_V_STRING);
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 

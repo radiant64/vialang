@@ -21,6 +21,7 @@ set(SOURCES
     alloc.c
     assembler.c
     builtin.c
+    exceptions.c
     parse.c
     vm.c
 )

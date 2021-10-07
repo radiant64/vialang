@@ -795,7 +795,10 @@ void via_catch(
     struct via_value* handler
 ) {
     struct via_value* handler_frame = via_make_frame(vm);
-    handler_frame->v_arr[VIA_REG_PC]->v_int = VIA_EVAL_PROC; 
+    handler_frame->v_arr[VIA_REG_PC]->v_int = via_asm_label_lookup(
+        vm,
+        "eval-proc"
+    ); 
     handler_frame->v_arr[VIA_REG_EXPR] = handler;
 
     vm->regs = via_make_frame(vm);
@@ -810,6 +813,8 @@ void via_throw(struct via_vm* vm, struct via_value* exception) {
 }
 
 void via_default_exception_handler(struct via_vm* vm) {
+    struct via_value* exception_str = via_to_string(vm, via_exception(vm));
+    fprintf(stdout, "(via) Exception: %s\n", exception_str->v_string);
     via_return_outer(vm, via_to_string(vm, via_exception(vm)));
 }
 
@@ -832,6 +837,7 @@ struct via_value* via_run(struct via_vm* vm) {
 
 process_state:
     op = vm->program[vm->regs->v_arr[VIA_REG_PC]->v_int];
+    old_pc = vm->regs->v_arr[VIA_REG_PC]->v_int;
     DPRINTF("PC %04" VIA_FMTIx ": ", vm->regs->v_arr[VIA_REG_PC]->v_int);
     switch (op & 0xff) {
     case VIA_OP_NOP:
@@ -857,14 +863,7 @@ process_state:
         goto process_state;
     case VIA_OP_CALLB:
         DPRINTF("CALLB %04" VIA_FMTIx "\n", op >> 8);
-        old_pc = vm->regs->v_arr[VIA_REG_PC]->v_int;
         vm->bound[op >> 8](vm);
-        if (old_pc != vm->regs->v_arr[VIA_REG_PC]->v_int) {
-            DPRINTF("-------------\n");
-            // PC was changed from within the bound function, process without
-            // advancing.
-            goto process_state;
-        }
         break;
     case VIA_OP_SET:
         DPRINTF(
@@ -950,8 +949,7 @@ process_state:
         if (vm->acc && vm->acc->v_int != 0) {
             break;
         }
-        vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8);
-        DPRINTF("-------------\n");
+        vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8) + 1;
         break;
     case VIA_OP_SNAP:
         DPRINTF("SNAP %" VIA_FMTId "\n", op >> 8);
@@ -966,13 +964,11 @@ process_state:
         }
         vm->acc = vm->regs->v_arr[VIA_REG_PARN];
         via_assume_frame(vm);
-        DPRINTF("-------------\n");
-        goto process_state;
+        break;
     case VIA_OP_JMP:
         DPRINTF("JMP %" VIA_FMTId "\n", op >> 8);
         vm->regs->v_arr[VIA_REG_PC]->v_int += (op >> 8) + 1;
-        DPRINTF("-------------\n");
-        goto process_state;
+        break;
     case VIA_OP_PUSH:
         DPRINTF("PUSH > %s\n", via_to_string(vm, vm->acc)->v_string);
         via_push(vm, vm->acc);
@@ -997,7 +993,11 @@ process_state:
         break;
     }
 
-    (vm->regs->v_arr[VIA_REG_PC]->v_int)++;
+    if (old_pc == vm->regs->v_arr[VIA_REG_PC]->v_int) {
+        (vm->regs->v_arr[VIA_REG_PC]->v_int)++;
+    } else {
+        DPRINTF("-------------\n");
+    }
     goto process_state;
 }
 
