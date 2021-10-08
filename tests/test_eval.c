@@ -11,7 +11,7 @@ static void test_add(struct via_vm* vm) {
 }
 
 static void test_form(struct via_vm* vm) {
-    vm->ret = via_context(vm)->v_car;
+    vm->ret = via_reg_ctxt(vm)->v_car;
 }
 
 static void test_car(struct via_vm* vm) {
@@ -23,7 +23,7 @@ static void test_cdr(struct via_vm* vm) {
 }
 
 static void test_context(struct via_vm* vm) {
-    vm->ret = via_context(vm);
+    vm->ret = via_reg_ctxt(vm);
 }
 
 static void test_throw(struct via_vm* vm) {

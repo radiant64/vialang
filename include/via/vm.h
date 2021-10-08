@@ -162,9 +162,25 @@ struct via_value* via_pop_arg(struct via_vm* vm);
 
 void via_apply(struct via_vm* vm);
 
-struct via_value* via_context(struct via_vm* vm);
+struct via_value* via_reg_pc(struct via_vm* vm);
 
-struct via_value* via_exception(struct via_vm* vm);
+struct via_value* via_reg_expr(struct via_vm* vm);
+
+struct via_value* via_reg_proc(struct via_vm* vm);
+
+struct via_value* via_reg_args(struct via_vm* vm);
+
+struct via_value* via_reg_env(struct via_vm* vm);
+
+struct via_value* via_reg_excn(struct via_vm* vm);
+
+struct via_value* via_reg_exh(struct via_vm* vm);
+
+struct via_value* via_reg_sptr(struct via_vm* vm);
+
+struct via_value* via_reg_ctxt(struct via_vm* vm);
+
+struct via_value* via_reg_parn(struct via_vm* vm);
 
 void via_lookup_form(struct via_vm* vm);
 

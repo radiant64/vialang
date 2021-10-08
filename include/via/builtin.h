@@ -26,6 +26,16 @@ void via_f_throw(struct via_vm* vm);
 
 void via_p_eq(struct via_vm* vm);
 
+void via_p_gt(struct via_vm* vm);
+
+void via_p_lt(struct via_vm* vm);
+
+void via_p_gte(struct via_vm* vm);
+
+void via_p_lte(struct via_vm* vm);
+
+void via_p_neq(struct via_vm* vm);
+
 void via_p_context(struct via_vm* vm);
 
 void via_p_exception(struct via_vm* vm);
