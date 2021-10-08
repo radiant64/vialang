@@ -13,6 +13,7 @@ FIXTURE(test_assembler, "Assembler")
             "  car \n"
             "  cdr\n"
             "callacc\n"
+            "loadnil\n"
             "setret\n"
             "loadret\n"
             "pairp\n"

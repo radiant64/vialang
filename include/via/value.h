@@ -34,6 +34,7 @@ enum via_op {
     VIA_OP_CALLB,
     VIA_OP_SET,
     VIA_OP_LOAD,
+    VIA_OP_LOADNIL,
     VIA_OP_SETRET,
     VIA_OP_LOADRET,
     VIA_OP_PAIRP,

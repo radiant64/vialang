@@ -697,7 +697,7 @@ struct via_value* via_reg_sptr(struct via_vm* vm) {
 }
 
 struct via_value* via_reg_ctxt(struct via_vm* vm) {
-    return vm->regs->v_arr[VIA_REG_SPTR];
+    return vm->regs->v_arr[VIA_REG_CTXT];
 }
 
 struct via_value* via_reg_parn(struct via_vm* vm) {
@@ -908,6 +908,10 @@ process_state:
             via_to_string(vm, vm->regs->v_arr[op >> 8])->v_string
         );
         vm->acc = vm->regs->v_arr[op >> 8];
+        break;
+    case VIA_OP_LOADNIL:
+        DPRINTF("LOADNIL\n");
+        vm->acc = NULL;
         break;
     case VIA_OP_SETRET:
         DPRINTF("SETRET > %s\n", via_to_string(vm, vm->acc)->v_string);

@@ -89,10 +89,12 @@ eval-compound-proc:
         set !expr
         call eval-proc
 @proc-eval-done:
-    ; Set the !proc register to the result, and load the original expression in
-    ; the accumulator.
+    ; Set the !proc register to the result, clear !args, and load the original
+    ; expression in the accumulator.
     loadret
     set !proc
+    loadnil
+    set !args
     load !expr
 
     ; Iterate over the rest of the expression and evaluate the terms as
@@ -119,7 +121,6 @@ eval-compound-proc:
 begin-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt
-    pusharg
     set !expr
 @begin-eval-loop:
     cdr

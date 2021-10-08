@@ -175,6 +175,8 @@ static struct via_program* via_asm_parse_instr(
                 *dest = VIA_OP_CDR;
             } else if (strcmp("callacc", op) == 0) {
                 *dest = VIA_OP_CALLACC;
+            } else if (strcmp("loadnil", op) == 0) {
+                *dest = VIA_OP_LOADNIL;
             } else if (strcmp("setret", op) == 0) {
                 *dest = VIA_OP_SETRET;
             } else if (strcmp("loadret", op) == 0) {
