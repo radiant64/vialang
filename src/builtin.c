@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #define NO_ARGS "Function expects no arguments"
 #define ONE_ARG "Function expects one argument"
@@ -63,8 +64,6 @@
     }\
     const struct via_value* b = via_pop_arg(vm);\
     const struct via_value* a = via_pop_arg(vm);\
-    assert(a->type == VIA_V_INT || a->type == VIA_V_FLOAT);\
-    assert(b->type == VIA_V_INT || b->type == VIA_V_FLOAT);\
     if (\
         a->type >= VIA_V_INT && b->type >= VIA_V_INT\
             && a->type <= VIA_V_FLOAT && b->type <= VIA_V_FLOAT\
@@ -74,11 +73,16 @@
             (a->type == VIA_V_INT ? a->v_int : a->v_float)\
                 OPERATOR (b->type == VIA_V_INT ? b->v_int : b->v_float)\
         );\
+    } else if (a->type == b->type && a->type == VIA_V_BOOL) {\
+        vm->ret = via_make_bool(vm, a->v_bool OPERATOR b->v_bool);\
     } else if (\
         a->type == b->type\
             && (a->type == VIA_V_STRING || a->type == VIA_V_STRINGVIEW)\
     ) {\
-        return strcmp(a->v_stringview, b->v_stringview) OPERATOR 0;\
+        vm->ret = via_make_bool(\
+            vm,\
+            strcmp(a->v_string, b->v_string) OPERATOR 0\
+        );\
     } else {\
         vm->ret = via_make_bool(vm, a OPERATOR b);\
     }
