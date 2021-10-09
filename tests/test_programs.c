@@ -131,6 +131,23 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result->type == VIA_V_STRING);
     END_SECTION
 
+    SECTION("And/or")
+        const char* source = "(or (and #f (+)) #t)";
+
+        result = via_parse(vm, source);
+
+        REQUIRE(result);
+
+        expr = via_parse_ctx_program(result);
+        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+
+        result = via_run(vm);
+
+        REQUIRE(result);
+        REQUIRE(result->type == VIA_V_BOOL);
+        REQUIRE(result->v_bool);
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 
