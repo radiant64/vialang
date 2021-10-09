@@ -163,24 +163,26 @@ struct via_value* via_pop_arg(struct via_vm* vm);
 void via_apply(struct via_vm* vm);
 
 struct via_value* via_reg_pc(struct via_vm* vm);
-
 struct via_value* via_reg_expr(struct via_vm* vm);
-
 struct via_value* via_reg_proc(struct via_vm* vm);
-
 struct via_value* via_reg_args(struct via_vm* vm);
-
 struct via_value* via_reg_env(struct via_vm* vm);
-
 struct via_value* via_reg_excn(struct via_vm* vm);
-
 struct via_value* via_reg_exh(struct via_vm* vm);
-
 struct via_value* via_reg_sptr(struct via_vm* vm);
-
 struct via_value* via_reg_ctxt(struct via_vm* vm);
-
 struct via_value* via_reg_parn(struct via_vm* vm);
+
+void via_set_pc(struct via_vm* vm, struct via_value* value);
+void via_set_expr(struct via_vm* vm, struct via_value* value);
+void via_set_proc(struct via_vm* vm, struct via_value* value);
+void via_set_args(struct via_vm* vm, struct via_value* value);
+void via_set_env(struct via_vm* vm, struct via_value* value);
+void via_set_excn(struct via_vm* vm, struct via_value* value);
+void via_set_exh(struct via_vm* vm, struct via_value* value);
+void via_set_sptr(struct via_vm* vm, struct via_value* value);
+void via_set_ctxt(struct via_vm* vm, struct via_value* value);
+void via_set_parn(struct via_vm* vm, struct via_value* value);
 
 void via_lookup_form(struct via_vm* vm);
 
@@ -209,6 +211,8 @@ void via_catch(
 void via_throw(struct via_vm* vm, struct via_value* exception);
 
 void via_default_exception_handler(struct via_vm* vm);
+
+struct via_value* via_run_eval(struct via_vm* vm);
 
 struct via_value* via_run(struct via_vm* vm);
 

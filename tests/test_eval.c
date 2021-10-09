@@ -36,10 +36,9 @@ FIXTURE(test_eval, "Eval")
     struct via_value* result;
 
     SECTION("Literal value")
-        vm->regs->v_arr[VIA_REG_EXPR] = via_make_value(vm);
-        via_reg_expr(vm)->type = VIA_V_INT;
+        via_set_expr(vm, via_make_int(vm, 0));
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result == via_reg_expr(vm));
     END_SECTION
@@ -48,9 +47,9 @@ FIXTURE(test_eval, "Eval")
         struct via_value* value = via_make_value(vm);
 
         via_env_set(vm, via_sym(vm, "test-symbol"), value); 
-        vm->regs->v_arr[VIA_REG_EXPR] = via_sym(vm, "test-symbol");
+        via_set_expr(vm, via_sym(vm, "test-symbol"));
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result == value);
     END_SECTION
@@ -62,17 +61,19 @@ FIXTURE(test_eval, "Eval")
             via_formals(vm, "value", NULL),
             via_reg_env(vm)
         );
-        proc->type = VIA_V_PROC;
 
         // Compound expression
-        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
+        via_set_expr(
             vm,
-            proc,
-            via_make_int(vm, 123),
-            NULL
+            via_list(
+                vm,
+                proc,
+                via_make_int(vm, 123),
+                NULL
+            )
         );
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result->type == VIA_V_INT);
         REQUIRE(result->v_int == 123);
@@ -82,26 +83,32 @@ FIXTURE(test_eval, "Eval")
         struct via_value* formals = via_formals(vm, "a", "b", NULL);
         via_register_proc(vm, "test-add", "test-add-proc", formals, test_add);
 
-        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
+        via_set_expr(
             vm,
-            via_sym(vm, "test-add"),
-            via_make_int(vm, 34),
-            via_make_int(vm, 12),
-            NULL
+            via_list(
+                vm,
+                via_sym(vm, "test-add"),
+                via_make_int(vm, 34),
+                via_make_int(vm, 12),
+                NULL
+            )
         );
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result->type == VIA_V_INT);
         REQUIRE(result->v_int == 22);
     END_SECTION
 
     SECTION("Special forms")
-        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
+        via_set_expr(
             vm,
-            via_sym(vm, "test-form"),
-            via_sym(vm, "test-symbol"),
-            NULL
+            via_list(
+                vm,
+                via_sym(vm, "test-form"),
+                via_sym(vm, "test-symbol"),
+                NULL
+            )
         );
 
         SECTION("Native") 
@@ -123,14 +130,14 @@ FIXTURE(test_eval, "Eval")
 
             via_env_set(vm, via_sym(vm, "test-form"), form);
 
-            result = via_run(vm);
+            result = via_run_eval(vm);
 
             REQUIRE(result == via_sym(vm, "test-symbol"));
         END_SECTION
 
         SECTION("Built in")
             via_register_form(vm, "test-form", "test-form-proc", test_form);
-            result = via_run(vm);
+            result = via_run_eval(vm);
 
             REQUIRE(result == via_sym(vm, "test-symbol"));
         END_SECTION
@@ -138,13 +145,15 @@ FIXTURE(test_eval, "Eval")
 
     SECTION("Exceptions")
         via_register_proc(vm, "throw-proc", "throw-proc", NULL, test_throw);
-        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
-            vm,
-            via_sym(vm, "throw-proc"),
-            NULL
+        via_set_expr(vm,
+            via_list(
+                vm,
+                via_sym(vm, "throw-proc"),
+                NULL
+            )
         );
         
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result->type == VIA_V_STRING);
         REQUIRE(strcmp(result->v_string, "123") == 0);

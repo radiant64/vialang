@@ -131,9 +131,9 @@ struct via_vm* via_create_vm() {
 
         vm->regs = NULL;
         vm->regs = via_make_frame(vm);
-        vm->regs->v_arr[VIA_REG_PC] = via_make_int(vm, VIA_EVAL_PROC);
-        vm->regs->v_arr[VIA_REG_ENV] = via_make_env(vm);
-        vm->regs->v_arr[VIA_REG_SPTR] = via_make_int(vm, 0);
+        via_set_pc(vm, via_make_int(vm, 0));
+        via_set_env(vm, via_make_env(vm));
+        via_set_sptr(vm, via_make_int(vm, 0));
 
         via_add_core_routines(vm);
         via_add_core_forms(vm);
@@ -629,12 +629,12 @@ struct via_value* via_pop(struct via_vm* vm) {
 }
 
 void via_push_arg(struct via_vm* vm, struct via_value* val) {
-    vm->regs->v_arr[VIA_REG_ARGS] = via_make_pair(vm, val, via_reg_args(vm));
+    via_set_args(vm, via_make_pair(vm, val, via_reg_args(vm)));
 }
 
 struct via_value* via_pop_arg(struct via_vm* vm) {
     struct via_value* val = via_reg_args(vm)->v_car;
-    vm->regs->v_arr[VIA_REG_ARGS] = via_reg_args(vm)->v_cdr;
+    via_set_args(vm, via_reg_args(vm)->v_cdr);
     return val; 
 }
 
@@ -652,7 +652,7 @@ void via_apply(struct via_vm* vm) {
 
     struct via_value* formals = proc->v_cdr->v_car;
     vm->acc = proc->v_cdr->v_cdr->v_car;
-    vm->regs->v_arr[VIA_REG_ENV] = via_make_env(vm);
+    via_set_env(vm, via_make_env(vm));
 
     while (formals) {
         via_env_set(vm, formals->v_car, args->v_car);
@@ -660,7 +660,7 @@ void via_apply(struct via_vm* vm) {
         formals = formals->v_cdr;
     }
 
-    vm->regs->v_arr[VIA_REG_EXPR] = proc->v_car;
+    via_set_expr(vm, proc->v_car);
     via_reg_pc(vm)->v_int = eval_proc;
 }
 
@@ -703,6 +703,47 @@ struct via_value* via_reg_ctxt(struct via_vm* vm) {
 struct via_value* via_reg_parn(struct via_vm* vm) {
     return vm->regs->v_arr[VIA_REG_PARN];
 }
+
+void via_set_pc(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_PC] = value;
+}
+
+void via_set_expr(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_EXPR] = value;
+}
+
+void via_set_proc(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_PROC] = value;
+}
+
+void via_set_args(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_ARGS] = value;
+}
+
+void via_set_env(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_ENV] = value;
+}
+
+void via_set_excn(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_EXCN] = value;
+}
+
+void via_set_exh(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_EXH] = value;
+}
+
+void via_set_sptr(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_SPTR] = value;
+}
+
+void via_set_ctxt(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_CTXT] = value;
+}
+
+void via_set_parn(struct via_vm* vm, struct via_value* value) {
+    vm->regs->v_arr[VIA_REG_PARN] = value;
+}
+
 
 void via_env_lookup(struct via_vm* vm) {
     struct via_value* env = via_reg_env(vm);
@@ -830,14 +871,14 @@ void via_catch(
     handler_frame->v_arr[VIA_REG_EXPR] = handler;
 
     vm->regs = via_make_frame(vm);
-    vm->regs->v_arr[VIA_REG_EXH] = handler_frame;
-    vm->regs->v_arr[VIA_REG_EXPR] = expr;
+    via_set_exh(vm, handler_frame);
+    via_set_expr(vm, expr);
 }
 
 void via_throw(struct via_vm* vm, struct via_value* exception) {
     vm->acc = via_reg_exh(vm);
     via_assume_frame(vm);
-    vm->regs->v_arr[VIA_REG_EXCN] = exception;
+    via_set_excn(vm, exception);
 }
 
 void via_default_exception_handler(struct via_vm* vm) {
@@ -846,11 +887,7 @@ void via_default_exception_handler(struct via_vm* vm) {
     via_return_outer(vm, via_to_string(vm, via_reg_excn(vm)));
 }
 
-struct via_value* via_run(struct via_vm* vm) {
-    struct via_value* val;
-    via_int old_pc;
-    via_int op;
-    
+struct via_value* via_run_eval(struct via_vm* vm) {
     via_reg_pc(vm)->v_int = via_asm_label_lookup(vm, "eval-proc");
     via_catch(
         vm,
@@ -861,8 +898,16 @@ struct via_value* via_run(struct via_vm* vm) {
         )
     );
     // Replace the current frame with the catch clause. 
-    vm->regs->v_arr[VIA_REG_PARN] = NULL;
+    via_set_parn(vm, NULL);
 
+    return via_run(vm);
+}
+
+struct via_value* via_run(struct via_vm* vm) {
+    struct via_value* val;
+    via_int old_pc;
+    via_int op;
+    
 process_state:
     op = vm->program[via_reg_pc(vm)->v_int];
     old_pc = via_reg_pc(vm)->v_int;

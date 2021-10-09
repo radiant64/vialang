@@ -3,7 +3,7 @@
 #include <via/vm.h>
 
 static via_bool builtin_called;
-static const via_int test_addr = 8000;
+static const via_int test_addr = 2000;
 
 static void test_builtin(struct via_vm* vm) {
     builtin_called = true;
@@ -11,14 +11,14 @@ static void test_builtin(struct via_vm* vm) {
 
 static void test_jumping_builtin(struct via_vm* vm) {
     builtin_called = true;
-    vm->regs->v_arr[VIA_REG_PC]->v_int = test_addr + 2;
+    via_reg_pc(vm)->v_int = test_addr + 2;
 }
 
 FIXTURE(test_opcodes, "Opcodes")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
 
-    vm->regs->v_arr[VIA_REG_PC]->v_int = test_addr;
+    via_reg_pc(vm)->v_int = test_addr;
 
     struct via_value* result;
     
@@ -27,110 +27,117 @@ FIXTURE(test_opcodes, "Opcodes")
     struct via_value* bar = via_make_value(vm);
 
     SECTION("RETURN")
-        vm->program[test_addr] = _RETURN();
+        vm->program[test_addr] = VIA_OP_RETURN;
         result = via_run(vm);
 
         REQUIRE(result == vm->ret);
-        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr);
+        REQUIRE(via_reg_pc(vm)->v_int == test_addr);
     END_SECTION
 
     // Ensure the rest of the tests terminate.
-    vm->program[test_addr + 1] = _RETURN();
+    vm->program[test_addr + 1] = VIA_OP_RETURN;
 
     SECTION("NOP")
-        vm->program[test_addr] = _NOP();
+        vm->program[test_addr] = VIA_OP_NOP;
         result = via_run(vm);
         
-        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 1);
+        REQUIRE(via_reg_pc(vm)->v_int == test_addr + 1);
     END_SECTION
 
     SECTION("CAR & CDR")
-        vm->acc = via_make_value(vm);
-        vm->acc->type = VIA_V_PAIR;
-        vm->acc->v_car = foo;
-        vm->acc->v_cdr = bar;
+        vm->acc = via_make_pair(vm, foo, bar);
 
         SECTION("CAR")
-            vm->program[test_addr] = _CAR();
+            vm->program[test_addr] = VIA_OP_CAR;
             result = via_run(vm);
 
             REQUIRE(vm->acc == foo);
         END_SECTION
 
         SECTION("CDR")
-            vm->program[test_addr] = _CDR();
+            vm->program[test_addr] = VIA_OP_CDR;
             result = via_run(vm);
 
             REQUIRE(vm->acc == bar);
         END_SECTION
     END_SECTION
 
-    SECTION("CALL & CALLA")
-        vm->program[test_addr + 2] = _RETURN();
+    SECTION("CALL & CALLACC")
+        vm->program[test_addr + 2] = VIA_OP_RETURN;
 
         SECTION("CALL")
-            vm->program[test_addr] = _CALL(test_addr + 2);
+            vm->program[test_addr] = VIA_OP_CALL | ((test_addr + 2) << 8);
             result = via_run(vm);
 
-            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 2);
+            REQUIRE(via_reg_pc(vm)->v_int == test_addr + 2);
         END_SECTION
         
-        SECTION("CALLA")
-            vm->acc = via_make_value(vm);
-            vm->acc->type = VIA_V_INT;
-            vm->acc->v_int = test_addr + 2;
-            vm->program[test_addr] = _CALLA();
+        SECTION("CALLACC")
+            vm->acc = via_make_int(vm, test_addr + 2);
+            vm->program[test_addr] = VIA_OP_CALLACC;
             result = via_run(vm);
 
-            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 2);
+            REQUIRE(via_reg_pc(vm)->v_int == test_addr + 2);
         END_SECTION
     END_SECTION
 
     SECTION("CALLB")
-        const via_int bound = via_bind(vm, test_builtin);
-        const via_int bound_jumping = via_bind(vm, test_jumping_builtin);
+        const via_int bound = via_bind(vm, "test-proc", test_builtin);
+        const via_int bound_jumping = via_bind(
+            vm,
+            "jumping-proc",
+            test_jumping_builtin
+        );
         REQUIRE(bound);
         REQUIRE(bound_jumping);
 
         builtin_called = false;
 
         SECTION("Regular")
-            vm->program[test_addr] = _CALL(bound);
+            vm->program[test_addr] = VIA_OP_CALL | (bound << 8);
             result = via_run(vm);
 
             REQUIRE(builtin_called);
-            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == bound + 1);
+            REQUIRE(via_reg_pc(vm)->v_int == bound + 1);
         END_SECTION
 
         SECTION("Jumping")
-            vm->program[test_addr + 2] = _RETURN();
-            vm->program[test_addr] = _CALL(bound_jumping);
+            vm->program[test_addr + 2] = VIA_OP_RETURN;
+            vm->program[test_addr] = VIA_OP_CALL | (bound_jumping << 8);
             result = via_run(vm);
 
             REQUIRE(builtin_called);
-            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 2);
+            REQUIRE(via_reg_pc(vm)->v_int == test_addr + 2);
         END_SECTION
     END_SECTION
 
     SECTION("SET")
         vm->acc = foo;
-        vm->program[test_addr] = _SET(VIA_REG_EXPR);
+        vm->program[test_addr] = VIA_OP_SET | (VIA_REG_EXPR << 8);
         result = via_run(vm);
 
-        REQUIRE(vm->regs->v_arr[VIA_REG_EXPR] == foo);
+        REQUIRE(via_reg_expr(vm) == foo);
     END_SECTION
 
     SECTION("LOAD")
-        vm->regs->v_arr[VIA_REG_EXPR] = foo;
-        vm->program[test_addr] = _LOAD(VIA_REG_EXPR);
+        via_set_expr(vm, foo);
+        vm->program[test_addr] = VIA_OP_LOAD | (VIA_REG_EXPR << 8);
         result = via_run(vm);
 
         REQUIRE(vm->acc == foo);
     END_SECTION
 
+    SECTION("LOADNIL")
+        vm->acc = foo;
+        vm->program[test_addr] = VIA_OP_LOADNIL;
+        result = via_run(vm);
+
+        REQUIRE(vm->acc == NULL);
+    END_SECTION
+
     SECTION("SETRET")
         vm->acc = foo;
-        vm->program[test_addr] = _SETRET();
+        vm->program[test_addr] = VIA_OP_SETRET;
         result = via_run(vm);
 
         REQUIRE(vm->ret == foo);
@@ -139,14 +146,14 @@ FIXTURE(test_opcodes, "Opcodes")
 
     SECTION("LOADRET")
         vm->ret = foo;
-        vm->program[test_addr] = _LOADRET();
+        vm->program[test_addr] = VIA_OP_LOADRET;
         result = via_run(vm);
 
         REQUIRE(vm->acc == foo);
     END_SECTION
 
     SECTION("PAIRP")
-        vm->program[test_addr] = _PAIRP();
+        vm->program[test_addr] = VIA_OP_PAIRP;
         vm->acc = foo;
 
         SECTION("Is pair")
@@ -167,7 +174,7 @@ FIXTURE(test_opcodes, "Opcodes")
     END_SECTION
 
     SECTION("SYMBOLP")
-        vm->program[test_addr] = _SYMBOLP();
+        vm->program[test_addr] = VIA_OP_SYMBOLP;
         vm->acc = foo;
 
         SECTION("Is symbol")
@@ -188,7 +195,7 @@ FIXTURE(test_opcodes, "Opcodes")
     END_SECTION
 
     SECTION("FORMP")
-        vm->program[test_addr] = _FORMP();
+        vm->program[test_addr] = VIA_OP_FORMP;
         vm->acc = foo;
 
         SECTION("Is form")
@@ -209,7 +216,7 @@ FIXTURE(test_opcodes, "Opcodes")
     END_SECTION
 
     SECTION("FRAMEP")
-        vm->program[test_addr] = _FRAMEP();
+        vm->program[test_addr] = VIA_OP_FRAMEP;
         vm->acc = foo;
 
         SECTION("Is frame")
@@ -230,32 +237,32 @@ FIXTURE(test_opcodes, "Opcodes")
     END_SECTION
 
     SECTION("SKIPZ")
-        vm->program[test_addr + 3] = _RETURN();
-        vm->program[test_addr] = _SKIPZ(2);
+        vm->program[test_addr + 3] = VIA_OP_RETURN;
+        vm->program[test_addr] = VIA_OP_SKIPZ | (2 << 8);
         vm->acc = foo;
 
         SECTION("Zero")
             foo->v_int = 0;
             result = via_run(vm);
 
-            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 3);
+            REQUIRE(via_reg_pc(vm)->v_int == test_addr + 3);
         END_SECTION
         
         SECTION("Not zero")
             foo->v_int = 1;
             result = via_run(vm);
 
-            REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 1);
+            REQUIRE(via_reg_pc(vm)->v_int == test_addr + 1);
         END_SECTION
     END_SECTION
 
     SECTION("PUSH & POP")
         vm->acc = foo;
         vm->ret = bar;
-        vm->program[test_addr] = _PUSH();
-        vm->program[test_addr + 1] = _LOADRET();
-        vm->program[test_addr + 2] = _POP();
-        vm->program[test_addr + 3] = _RETURN();
+        vm->program[test_addr] = VIA_OP_PUSH;
+        vm->program[test_addr + 1] = VIA_OP_LOADRET;
+        vm->program[test_addr + 2] = VIA_OP_POP;
+        vm->program[test_addr + 3] = VIA_OP_RETURN;
         result = via_run(vm);
 
         REQUIRE(result == bar);
@@ -264,61 +271,63 @@ FIXTURE(test_opcodes, "Opcodes")
 
     SECTION("SNAP")
         vm->acc = foo;
-        vm->regs->v_arr[VIA_REG_EXPR] = bar;
-        vm->regs->v_arr[VIA_REG_ARGS] = foo;
-        vm->regs->v_arr[VIA_REG_PROC] = foo;
-        vm->regs->v_arr[VIA_REG_ENV] = foo;
-        vm->regs->v_arr[VIA_REG_EXH] = foo;
-        vm->program[test_addr] = _SNAP(3);
-        vm->program[test_addr + 1] = _SET(VIA_REG_EXPR);
-        vm->program[test_addr + 2] = _RETURN();
-        vm->program[test_addr + 3] = _RETURN();
-        vm->program[test_addr + 4] = _RETURN();
+        via_set_expr(vm, bar);
+        via_set_args(vm, foo);
+        via_set_proc(vm, foo);
+        via_set_env(vm, foo);
+        via_set_exh(vm, foo);
+        vm->program[test_addr] = VIA_OP_SNAP | (3 << 8);
+        vm->program[test_addr + 1] = VIA_OP_SET| (VIA_REG_EXPR << 8);
+        vm->program[test_addr + 2] = VIA_OP_RETURN;
+        vm->program[test_addr + 3] = VIA_OP_RETURN;
+        vm->program[test_addr + 4] = VIA_OP_RETURN;
 
         result = via_run(vm);
 
-        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 4);
-        REQUIRE(vm->regs->v_arr[VIA_REG_EXPR] == bar);
+        REQUIRE(via_reg_pc(vm)->v_int == test_addr + 4);
+        REQUIRE(via_reg_expr(vm) == bar);
     END_SECTION
 
     SECTION("JMP")
-        vm->program[test_addr] = _JMP(4);
-        vm->program[test_addr + 3] = _RETURN();
-        vm->program[test_addr + 5] = _JMP(-3);
+        vm->program[test_addr] = VIA_OP_JMP | (4 << 8);
+        vm->program[test_addr + 3] = VIA_OP_RETURN;
+        vm->program[test_addr + 5] = VIA_OP_JMP | (-3 << 8);
         result = via_run(vm);
 
-        REQUIRE(vm->regs->v_arr[VIA_REG_PC]->v_int == test_addr + 3);
+        REQUIRE(via_reg_pc(vm)->v_int == test_addr + 3);
     END_SECTION
 
     SECTION("DROP")
         vm->acc = foo;
         vm->ret = bar;
-        vm->program[test_addr] = _PUSH();
-        vm->program[test_addr + 1] = _LOADRET();
-        vm->program[test_addr + 2] = _DROP();
-        vm->program[test_addr + 3] = _RETURN();
+        vm->program[test_addr] = VIA_OP_PUSH;
+        vm->program[test_addr + 1] = VIA_OP_LOADRET;
+        vm->program[test_addr + 2] = VIA_OP_PUSH;
+        vm->program[test_addr + 3] = VIA_OP_DROP;
+        vm->program[test_addr + 4] = VIA_OP_POP;
+        vm->program[test_addr + 5] = VIA_OP_RETURN;
         result = via_run(vm);
 
-        REQUIRE(vm->acc == bar);
+        REQUIRE(vm->acc == foo);
     END_SECTION
 
     SECTION("PUSHARG")
         vm->acc = foo;
-        vm->program[test_addr] = _PUSHARG();
+        vm->program[test_addr] = VIA_OP_PUSHARG;
         result = via_run(vm);
 
-        REQUIRE(vm->regs->v_arr[VIA_REG_ARGS]->type == VIA_V_PAIR);
-        REQUIRE(vm->regs->v_arr[VIA_REG_ARGS]->v_car == foo);
-        REQUIRE(vm->regs->v_arr[VIA_REG_ARGS]->v_cdr == NULL);
+        REQUIRE(via_reg_args(vm)->type == VIA_V_PAIR);
+        REQUIRE(via_reg_args(vm)->v_car == foo);
+        REQUIRE(via_reg_args(vm)->v_cdr == NULL);
         
         SECTION("POPARG")
             vm->acc = bar;
-            vm->regs->v_arr[VIA_REG_PC]->v_int = test_addr;
-            vm->program[test_addr] = _POPARG();
+            via_reg_pc(vm)->v_int = test_addr;
+            vm->program[test_addr] = VIA_OP_POPARG;
             result = via_run(vm);
 
             REQUIRE(vm->acc == foo);
-            REQUIRE(vm->regs->v_arr[VIA_REG_ARGS] == NULL);
+            REQUIRE(via_reg_args(vm) == NULL);
         END_SECTION
     END_SECTION
 

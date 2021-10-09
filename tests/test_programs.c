@@ -19,9 +19,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result == via_sym(vm, "test-symbol"));
@@ -34,9 +34,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->v_int == 12);
@@ -49,9 +49,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->v_int == 34);
@@ -64,9 +64,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->type == VIA_V_FLOAT);
@@ -80,9 +80,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->type == VIA_V_FLOAT);
@@ -107,9 +107,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->v_int == 120);
@@ -123,9 +123,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->type == VIA_V_STRING);
@@ -139,9 +139,9 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result);
 
         expr = via_parse_ctx_program(result);
-        vm->regs->v_arr[VIA_REG_EXPR] = expr->v_car;
+        via_set_expr(vm, expr->v_car);
 
-        result = via_run(vm);
+        result = via_run_eval(vm);
 
         REQUIRE(result);
         REQUIRE(result->type == VIA_V_BOOL);
