@@ -1,6 +1,5 @@
 #include <testdrive.h>
 
-#include <via/asm_macros.h>
 #include <via/vm.h>
 
 static void test_add(struct via_vm* vm) {
@@ -38,11 +37,11 @@ FIXTURE(test_eval, "Eval")
 
     SECTION("Literal value")
         vm->regs->v_arr[VIA_REG_EXPR] = via_make_value(vm);
-        vm->regs->v_arr[VIA_REG_EXPR]->type = VIA_V_INT;
+        via_reg_expr(vm)->type = VIA_V_INT;
 
         result = via_run(vm);
 
-        REQUIRE(result == vm->regs->v_arr[VIA_REG_EXPR]);
+        REQUIRE(result == via_reg_expr(vm));
     END_SECTION
 
     SECTION("Symbol lookup")
@@ -57,26 +56,20 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Procedure application")
-        struct via_value* formals = via_make_pair(
-            vm,
-            via_sym(vm, "value"),
-            NULL
-        );
-
-        struct via_value* proc = via_list(
+        struct via_value* proc = via_make_proc(
             vm,
             via_sym(vm, "value"),
             via_formals(vm, "value", NULL),
-            vm->regs->v_arr[VIA_REG_ENV],
-            NULL
+            via_reg_env(vm)
         );
         proc->type = VIA_V_PROC;
 
         // Compound expression
-        vm->regs->v_arr[VIA_REG_EXPR] = via_make_pair(
+        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
             vm,
             proc,
-            via_make_pair(vm, via_make_int(vm, 123), NULL)
+            via_make_int(vm, 123),
+            NULL
         );
 
         result = via_run(vm);
@@ -87,7 +80,7 @@ FIXTURE(test_eval, "Eval")
     
     SECTION("Procedure application (builtin)")
         struct via_value* formals = via_formals(vm, "a", "b", NULL);
-        via_register_proc(vm, "test-add", formals, test_add);
+        via_register_proc(vm, "test-add", "test-add-proc", formals, test_add);
 
         vm->regs->v_arr[VIA_REG_EXPR] = via_list(
             vm,
@@ -104,30 +97,25 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Special forms")
-        vm->regs->v_arr[VIA_REG_EXPR] = via_make_pair(
+        vm->regs->v_arr[VIA_REG_EXPR] = via_list(
             vm,
             via_sym(vm, "test-form"),
-            via_make_pair(vm, via_sym(vm, "test-symbol"), NULL)
+            via_sym(vm, "test-symbol"),
+            NULL
         );
 
         SECTION("Native") 
-            via_register_proc(vm, "car", NULL, test_car);
-            via_register_proc(vm, "cdr", NULL, test_cdr);
-            via_register_proc(vm, "context", NULL, test_context);
-            struct via_value* form = via_make_pair(
+            struct via_value* form = via_list(
                 vm,
-                via_make_pair(
+                via_list(
                     vm,
                     via_sym(vm, "car"),
-                    via_make_pair(
+                    via_list(
                         vm,
-                        via_make_pair(
-                            vm,
-                            via_sym(vm, "context"),
-                            NULL
-                        ),
+                        via_sym(vm, "context"),
                         NULL
-                    )
+                    ),
+                    NULL
                 ),
                 NULL
             );
@@ -141,7 +129,7 @@ FIXTURE(test_eval, "Eval")
         END_SECTION
 
         SECTION("Built in")
-            via_register_form(vm, "test-form", test_form);
+            via_register_form(vm, "test-form", "test-form-proc", test_form);
             result = via_run(vm);
 
             REQUIRE(result == via_sym(vm, "test-symbol"));
@@ -149,7 +137,7 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Exceptions")
-        via_register_proc(vm, "throw-proc", NULL, test_throw);
+        via_register_proc(vm, "throw-proc", "throw-proc", NULL, test_throw);
         vm->regs->v_arr[VIA_REG_EXPR] = via_list(
             vm,
             via_sym(vm, "throw-proc"),
