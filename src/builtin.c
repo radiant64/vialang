@@ -74,6 +74,11 @@
             (a->type == VIA_V_INT ? a->v_int : a->v_float)\
                 OPERATOR (b->type == VIA_V_INT ? b->v_int : b->v_float)\
         );\
+    } else if (\
+        a->type == b->type\
+            && (a->type == VIA_V_STRING || a->type == VIA_V_STRINGVIEW)\
+    ) {\
+        return strcmp(a->v_stringview, b->v_stringview) OPERATOR 0;\
     } else {\
         vm->ret = via_make_bool(vm, a OPERATOR b);\
     }
