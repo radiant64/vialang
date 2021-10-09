@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
 
 file(READ ${DATA_FILE} HEX_DATA HEX ENCODING UTF-8)
+if(APPEND_ZERO)
+    string(CONCAT HEX_DATA ${HEX_DATA} "00")
+endif()
 string(REGEX REPLACE "([A-Fa-f0-9][A-Fa-f0-9])" "0x\\1," TEMP ${HEX_DATA})
 string(REGEX REPLACE ",$" "" HEX_BYTES ${TEMP})
 string(REGEX MATCHALL

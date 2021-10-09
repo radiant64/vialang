@@ -192,6 +192,53 @@ if-proc:
 
 
 ;-------------------------------------------------------------------------------
+and-proc:
+;-------------------------------------------------------------------------------
+    load !ctxt
+    car
+    snap @and-eval-first-done
+        set !expr
+        call eval-proc
+@and-eval-first-done:
+    loadret
+    skipz @and-done
+        load !ctxt
+        cdr
+        car
+        snap @and-eval-second-done
+            set !expr
+            call eval-proc
+    @and-eval-second-done:
+        loadret
+@and-done:
+    return
+
+
+;-------------------------------------------------------------------------------
+or-proc:
+;-------------------------------------------------------------------------------
+    load !ctxt
+    car
+    snap @or-eval-first-done
+        set !expr
+        call eval-proc
+@or-eval-first-done:
+    loadret
+    skipz @or-eval-second
+        return
+@or-eval-second:
+    load !ctxt
+    cdr
+    car
+    snap @or-eval-second-done
+        set !expr
+        call eval-proc
+    @or-eval-second-done:
+    loadret
+    return
+
+
+;-------------------------------------------------------------------------------
 throw-eval-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt

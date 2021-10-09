@@ -314,6 +314,8 @@ void via_p_garbage_collect(struct via_vm* vm) {
 void via_add_core_forms(struct via_vm* vm) {
     via_register_native_form(vm, "begin", "begin-proc");
     via_register_native_form(vm, "if", "if-proc");
+    via_register_native_form(vm, "and", "and-proc");
+    via_register_native_form(vm, "or", "or-proc");
     via_register_native_form(vm, "set!", "set-proc");
 
     via_register_form(vm, "quote", "quote-proc", via_f_quote);

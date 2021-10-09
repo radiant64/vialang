@@ -1,4 +1,4 @@
-macro(add_embedded BASENAME DATA_FILE VARNAME)
+macro(add_embedded BASENAME DATA_FILE APPEND_ZERO VARNAME)
     set(PATH "${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}")
     file(MAKE_DIRECTORY "${$ATH}")
     add_custom_command(
@@ -7,6 +7,7 @@ macro(add_embedded BASENAME DATA_FILE VARNAME)
             ${CMAKE_COMMAND}
                 "-DDATA_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${DATA_FILE}"
                 "-DVAR_NAME=${VARNAME}"
+                "-DAPPEND_ZERO=${APPEND_ZERO}"
                 "-DHEADER_FILE=${PATH}/${BASENAME}.h"
                 "-DIMPL_FILE=${PATH}/${BASENAME}.c"
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/embed.cmake
@@ -25,7 +26,7 @@ set(SOURCES
     parse.c
     vm.c
 )
-add_embedded(builtin-native builtin.viaas builtin_prg)
+add_embedded(builtin-native builtin.viaas 1 builtin_prg)
 add_library(via ${SOURCES})
 target_include_directories(via PUBLIC ../include)
 target_link_libraries(via PUBLIC m PRIVATE builtin-native)
