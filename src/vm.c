@@ -883,12 +883,12 @@ process_state:
         DPRINTF("CALL %04" VIA_FMTIx "\n", op >> 8);
         via_reg_pc(vm)->v_int = op >> 8;
         DPRINTF("-------------\n");
-        goto process_state;
+        break;
     case VIA_OP_CALLACC:
         DPRINTF("CALLACC (acc = %04" VIA_FMTIx ")\n", vm->acc->v_int);
         via_reg_pc(vm)->v_int = vm->acc->v_int;
         DPRINTF("-------------\n");
-        goto process_state;
+        break;
     case VIA_OP_CALLB:
         DPRINTF("CALLB %04" VIA_FMTIx "\n", op >> 8);
         vm->bound[op >> 8](vm);
