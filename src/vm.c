@@ -1,10 +1,15 @@
 #include <via/vm.h>
 
-#include <builtin-native.h>
+#include "exception-strings.h"
 
 #include <via/alloc.h>
 #include <via/assembler.h>
 #include <via/builtin.h>
+#include <via/exceptions.h>
+#include <via/parse.h>
+
+#include <builtin-native.h>
+#include <native-via.h>
 
 #include <assert.h>
 #include <stdarg.h>
@@ -83,6 +88,7 @@ void via_add_core_routines(struct via_vm* vm) {
     // Add some builtins.
     via_bind(vm, "lookup-proc", via_env_lookup);
     via_bind(vm, "apply-proc", via_apply);
+    via_bind(vm, "form-expand-proc", via_expand_form);
     via_bind(vm, "assume-proc", via_assume_frame);
     via_bind(vm, "env-set-proc", via_env_set_proc);
     via_bind(vm, "throw-proc", via_throw_proc);
@@ -138,6 +144,17 @@ struct via_vm* via_create_vm() {
         via_add_core_routines(vm);
         via_add_core_forms(vm);
         via_add_core_procedures(vm);
+
+        struct via_value* native = via_parse(vm, native_via);
+        if (!native) {
+            goto cleanup_stack;
+        }
+        
+        via_set_expr(vm, via_parse_ctx_program(native)->v_car);
+        struct via_value* native_result = via_run_eval(vm); 
+        if (!native_result) {
+            goto cleanup_stack;
+        }
     }
 
     return vm;
@@ -273,8 +290,20 @@ struct via_value* via_make_proc(
     return value;
 }
 
-struct via_value* via_make_form(struct via_vm* vm, struct via_value* body) {
-    struct via_value* value = via_make_pair(vm, body, NULL);
+struct via_value* via_make_form(
+    struct via_vm* vm,
+    struct via_value* formals,
+    struct via_value* body
+) {
+    struct via_value* value = via_make_pair(
+        vm,
+        formals,
+        via_make_pair(
+            vm,
+            body,
+            NULL
+        )
+    );
     value->type = VIA_V_FORM;
 
     return value;
@@ -419,14 +448,14 @@ void via_register_form(
     struct via_vm* vm,
     const char* symbol,
     const char* asm_label,
+    struct via_value* formals,
     void(*func)(struct via_vm*)
 ) {
-    struct via_value* form = via_make_pair(
+    struct via_value* form = via_make_form(
         vm,
-        via_make_builtin(vm, via_bind(vm, asm_label, func)),
-        NULL
+        formals,
+        via_make_builtin(vm, via_bind(vm, asm_label, func))
     );
-    form->type = VIA_V_FORM;
 
     via_env_set(vm, via_sym(vm, symbol), form);
 }
@@ -434,14 +463,14 @@ void via_register_form(
 void via_register_native_form(
     struct via_vm* vm,
     const char* symbol,
-    const char* asm_label
+    const char* asm_label,
+    struct via_value* formals
 ) {
-    struct via_value* form = via_make_pair(
+    struct via_value* form = via_make_form(
         vm,
-        via_make_builtin(vm, via_asm_label_lookup(vm, asm_label)),
-        NULL
+        formals,
+        via_make_builtin(vm, via_asm_label_lookup(vm, asm_label))
     );
-    form->type = VIA_V_FORM;
 
     via_env_set(vm, via_sym(vm, symbol), form);
 }
@@ -664,6 +693,73 @@ void via_apply(struct via_vm* vm) {
     via_reg_pc(vm)->v_int = eval_proc;
 }
 
+static struct via_value* via_expand_lookup(
+    struct via_value* symbol,
+    struct via_value* meta_var
+) {
+    if (meta_var->v_car == symbol) {
+        return meta_var->v_cdr;
+    }
+
+    return symbol;
+}
+
+static struct via_value* via_expand_recurse(
+    struct via_vm* vm,
+    struct via_value* meta_var,
+    struct via_value* value
+) {
+    if (!value) {
+        return NULL;
+    } else if (value->type == VIA_V_SYMBOL) {
+        return via_expand_lookup(value, meta_var);
+    } else if (value->type == VIA_V_PAIR) {
+        return via_make_pair(
+            vm,
+            via_expand_recurse(vm, meta_var, value->v_car),
+            via_expand_recurse(vm, meta_var, value->v_cdr)
+        );
+    }
+
+    return value;
+}
+
+void via_expand_form(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    static struct via_vm* cached_instance = NULL;
+    static via_int eval_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        eval_proc = via_asm_label_lookup(vm, "eval-proc");
+    }
+
+    const struct via_value* formals = vm->acc->v_car;
+    const struct via_value* ctxt = via_reg_ctxt(vm);
+    struct via_value* body = vm->acc->v_cdr->v_car;
+
+    if (body->type != VIA_V_BUILTIN) {
+        while (formals) {
+            if (!ctxt) {
+                via_throw(
+                    vm,
+                    via_except_syntax_error(vm, FORM_INADEQUATE_ARGS)
+                );
+            }
+            
+            body = via_expand_recurse(
+                vm,
+                via_make_pair(vm, formals->v_car, ctxt->v_car),
+                body
+            );
+            formals = formals->v_cdr;
+            ctxt = ctxt->v_cdr;
+        }
+    }
+
+    via_set_expr(vm, body);
+    via_reg_pc(vm)->v_int = eval_proc;
+}
+
 struct via_value* via_reg_pc(struct via_vm* vm) {
     return vm->regs->v_arr[VIA_REG_PC];
 }
@@ -786,12 +882,6 @@ void via_env_set(
     }
 
     cursor->v_car = via_make_pair(vm, symbol, value);
-}
-
-void via_b_env_set(struct via_vm* vm) {
-    struct via_value* value = via_pop_arg(vm);
-    via_env_set(vm, vm->acc, value);
-    vm->ret = value;
 }
 
 static void via_mark(struct via_value* value, uint8_t generation) {
@@ -927,12 +1017,10 @@ process_state:
     case VIA_OP_CALL:
         DPRINTF("CALL %04" VIA_FMTIx "\n", op >> 8);
         via_reg_pc(vm)->v_int = op >> 8;
-        DPRINTF("-------------\n");
         break;
     case VIA_OP_CALLACC:
         DPRINTF("CALLACC (acc = %04" VIA_FMTIx ")\n", vm->acc->v_int);
         via_reg_pc(vm)->v_int = vm->acc->v_int;
-        DPRINTF("-------------\n");
         break;
     case VIA_OP_CALLB:
         DPRINTF("CALLB %04" VIA_FMTIx "\n", op >> 8);

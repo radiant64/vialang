@@ -4,43 +4,39 @@ eval-proc:
     load !expr
 
     ; Check if the value is a frame, if true assume the frame.
-    push
     framep
     skipz @no-frame-assume
-        pop
+        load !expr
         call assume-proc
 @no-frame-assume:
-    pop
+    load !expr
 
     ; Check if the value is a compound expression; if true return the result of
     ; a compound evaluation, replacing the current frame.
-    push
     pairp
     skipz @no-eval-compound
-        pop
+        load !expr
         call eval-compound-proc
 @no-eval-compound:
-    pop
+    load !expr
 
     ; Check if the value is a builtin; if true return the result of executing
     ; it, replacing the current frame.
-    push
     builtinp
     skipz @no-builtin-exec
-        pop
+        load !expr
         callacc
 @no-builtin-exec:
-    pop
+    load !expr
     
     ; Check if the value is a a symbol; if true return the lookup result,
     ; replacing the current frame.
-    push
     symbolp
     skipz @no-symbol-lookup
-        pop
+        load !expr
         call lookup-proc
 @no-symbol-lookup:
-    pop
+    load !expr
 
     ; Return the literal result.
     setret
@@ -64,18 +60,15 @@ eval-compound-proc:
             call lookup-proc
         loadret
 
-        ; If the symbol resolved to a special form, set the rest of the current
-        ; expression as !ctxt, and evaluate the form expression, replacing the
-        ; current frame.
+        ; If the symbol resolved to a special form, expand the form with the
+        ; rest of the expression as context, and evaluate it. 
         formp
         skipz @no-special-form
             load !expr
             cdr
             set !ctxt
             loadret
-            car
-            set !expr
-            call eval-proc
+            call form-expand-proc
     @no-special-form:
         loadret
         jmp @regular-form
@@ -160,7 +153,6 @@ set-proc:
     car
     push
     call env-set-proc
-    return
 
 
 ;-------------------------------------------------------------------------------

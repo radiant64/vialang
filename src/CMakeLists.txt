@@ -27,9 +27,10 @@ set(SOURCES
     vm.c
 )
 add_embedded(builtin-native builtin.viaas 1 builtin_prg)
+add_embedded(native-via native.via 1 native_via)
 add_library(via ${SOURCES})
 target_include_directories(via PUBLIC ../include)
-target_link_libraries(via PUBLIC m PRIVATE builtin-native)
+target_link_libraries(via PUBLIC m PRIVATE builtin-native native-via)
 set_property(TARGET via PROPERTY C_STANDARD 11)
 
 

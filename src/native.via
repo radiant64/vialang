@@ -1,0 +1,28 @@
+(begin
+  (syntax-template set-proc! (&proc-name &proc-formals &proc-body)
+                   (set! &proc-name (lambda &proc-formals &proc-body)))
+
+  (set-proc! cadr (pair)
+             (car (cdr pair)))
+
+  (set-proc! caddr (pair)
+             (car (cdr (cdr pair))))
+
+  (set-proc! cadddr (pair)
+             (car (cdr (cdr (cdr pair)))))
+
+  (set-proc! cdar (pair)
+             (cdr (car pair)))
+
+  (set-proc! cddar (pair)
+             (cdr (cdr (car pair))))
+
+  (set-proc! cdddar (pair)
+             (cdr (cdr (cdr (car pair)))))
+
+  (set-proc! cadar (pair)
+             (car (cdr (car pair))))
+
+  (set-proc! cdadr (pair)
+             (cdr (car (cdr pair)))))
+

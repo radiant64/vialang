@@ -1,5 +1,7 @@
 #include <via/builtin.h>
 
+#include "exception-strings.h"
+
 #include <via/assembler.h>
 #include <via/exceptions.h>
 #include <via/vm.h>
@@ -8,18 +10,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-
-#define NO_ARGS "Function expects no arguments"
-#define ONE_ARG "Function expects one argument"
-#define TWO_ARGS "Function expects two arguments"
-#define ARITH_NUMERIC "Arithmetic operation expects two numeric values"
-#define MODULO_INT "Modulo expects two integers"
-#define FORM_ARG "Expression requires arguments"
-#define FORM_NO_ARG "Expression expects no arguments"
-#define MALFORMED_LAMBDA "Malformed lambda expression"
-#define MALFORMED_CATCH "Malformed catch expression"
-#define PAIR_ARG "Function expects a pair argument"
-#define FLOAT_ARG "Function expects a float argument"
 
 #define OP(INTOP, FLOATOP)\
     if (!via_reg_args(vm) || !via_reg_args(vm)->v_cdr) {\
@@ -87,9 +77,26 @@
         vm->ret = via_make_bool(vm, a OPERATOR b);\
     }
 
+void via_f_syntax_template(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    if (!via_reg_ctxt(vm) ) {
+        via_throw(vm, via_except_syntax_error(vm, ""));
+        return;
+    }
+    if (via_reg_ctxt(vm)->type != VIA_V_PAIR) {
+        via_throw(vm, via_except_syntax_error(vm, MALFORMED_SYNTAX));
+        return;
+    }
+    struct via_value* symbol = via_reg_ctxt(vm)->v_car;
+    struct via_value* formals = via_reg_ctxt(vm)->v_cdr->v_car;
+    struct via_value* body = via_reg_ctxt(vm)->v_cdr->v_cdr->v_car;
+
+    via_env_set(vm, symbol, via_make_form( vm, formals, body));
+}
+
 void via_f_quote(struct via_vm* vm) {
     if (via_reg_ctxt(vm)->type != VIA_V_PAIR) {
-        via_throw(vm, via_except_syntax_error(vm, FORM_ARG));
+        via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
     vm->ret = via_reg_ctxt(vm)->v_car;
@@ -97,7 +104,7 @@ void via_f_quote(struct via_vm* vm) {
 
 void via_f_yield(struct via_vm* vm) {
     if (via_reg_ctxt(vm)) {
-        via_throw(vm, via_except_syntax_error(vm, FORM_NO_ARG));
+        via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
     struct via_value* retval = via_make_pair(vm, vm->ret, vm->regs);
@@ -110,7 +117,7 @@ void via_f_yield(struct via_vm* vm) {
 
 void via_f_lambda(struct via_vm* vm) {
     if (!via_reg_ctxt(vm)) {
-        via_throw(vm, via_except_syntax_error(vm, FORM_ARG));
+        via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
     if (via_reg_ctxt(vm)->type != VIA_V_PAIR) {
@@ -140,7 +147,7 @@ throw_syntax_error:
 void via_f_catch(struct via_vm* vm) {
     struct via_value* ctxt = via_reg_ctxt(vm);
     if (!ctxt) {
-        via_throw(vm, via_except_syntax_error(vm, FORM_ARG));
+        via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
     if (
@@ -231,7 +238,7 @@ void via_p_cdr(struct via_vm* vm) {
 void via_p_list(struct via_vm* vm) {
     struct via_value* arg;
     vm->ret = NULL;
-    while (arg = via_pop_arg(vm)) {
+    for (; via_reg_args(vm) != NULL; arg = via_pop_arg(vm)) {
         vm->ret = via_make_pair(vm, arg, vm->ret);
     }
 }
@@ -241,8 +248,15 @@ void via_p_display(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    struct via_value* value = via_pop_arg(vm);
-    fprintf(stdout, "%s\n", via_to_string(vm, value)->v_string);
+    struct via_value* list = NULL;
+    for (; via_reg_args(vm); list = via_make_pair(vm, via_pop_arg(vm), list)) {
+    }
+
+    while (list) {
+        fprintf(stdout, "%s", via_to_string(vm, list->v_car)->v_string);
+        list = list->v_cdr;
+    }
+    fprintf(stdout, "\n");
 }
 
 void via_p_add(struct via_vm* vm) {
@@ -312,15 +326,28 @@ void via_p_garbage_collect(struct via_vm* vm) {
 }
 
 void via_add_core_forms(struct via_vm* vm) {
-    via_register_native_form(vm, "begin", "begin-proc");
-    via_register_native_form(vm, "if", "if-proc");
-    via_register_native_form(vm, "and", "and-proc");
-    via_register_native_form(vm, "or", "or-proc");
-    via_register_native_form(vm, "set!", "set-proc");
+    via_register_native_form(vm, "begin", "begin-proc", NULL);
+    via_register_native_form(vm, "if", "if-proc", NULL);
+    via_register_native_form(vm, "and", "and-proc", NULL);
+    via_register_native_form(vm, "or", "or-proc", NULL);
+    via_register_native_form(vm, "set!", "set-proc", NULL);
 
-    via_register_form(vm, "quote", "quote-proc", via_f_quote);
-    via_register_form(vm, "yield", "yield-proc", via_f_yield);
-    via_register_form(vm, "lambda", "lambda-proc", via_f_lambda);
+    via_register_form(
+        vm,
+        "syntax-template",
+        "syntax-template-proc",
+        via_list(
+            vm,
+            via_sym(vm, "&syntax-symbol"),
+            via_sym(vm, "&syntax-formals"),
+            via_sym(vm, "&syntax-template"),
+            NULL
+        ),
+        via_f_syntax_template
+    );
+    via_register_form(vm, "quote", "quote-proc", NULL, via_f_quote);
+    via_register_form(vm, "yield", "yield-proc", NULL, via_f_yield);
+    via_register_form(vm, "lambda", "lambda-proc", NULL, via_f_lambda);
 }
 
 void via_add_core_procedures(struct via_vm* vm) {

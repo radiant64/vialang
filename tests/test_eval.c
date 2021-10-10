@@ -136,7 +136,13 @@ FIXTURE(test_eval, "Eval")
         END_SECTION
 
         SECTION("Built in")
-            via_register_form(vm, "test-form", "test-form-proc", test_form);
+            via_register_form(
+                vm,
+                "test-form",
+                "test-form-proc",
+                NULL,
+                test_form
+            );
             result = via_run_eval(vm);
 
             REQUIRE(result == via_sym(vm, "test-symbol"));

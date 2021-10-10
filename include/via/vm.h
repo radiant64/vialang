@@ -98,7 +98,11 @@ struct via_value* via_make_proc(
     struct via_value* env
 );
 
-struct via_value* via_make_form(struct via_vm* vm, struct via_value* body);
+struct via_value* via_make_form(
+    struct via_vm* vm,
+    struct via_value* formals,
+    struct via_value* body
+);
 
 struct via_value** via_make_array(struct via_vm* vm, size_t size);
 
@@ -133,13 +137,15 @@ void via_register_form(
     struct via_vm* vm,
     const char* symbol,
     const char* asm_label,
+    struct via_value* formals,
     void(*func)(struct via_vm*)
 );
 
 void via_register_native_form(
     struct via_vm* vm,
     const char* symbol,
-    const char* asm_label
+    const char* asm_label,
+    struct via_value* formals
 );
 
 void via_env_lookup(struct via_vm* vm);
@@ -161,6 +167,8 @@ void via_push_arg(struct via_vm* vm, struct via_value* val);
 struct via_value* via_pop_arg(struct via_vm* vm);
 
 void via_apply(struct via_vm* vm);
+
+void via_expand_form(struct via_vm* vm);
 
 struct via_value* via_reg_pc(struct via_vm* vm);
 struct via_value* via_reg_expr(struct via_vm* vm);
