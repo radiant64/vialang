@@ -142,6 +142,7 @@ set-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt
     cdr
+    cdr
     car
     snap @set-value-eval-done
         set !expr
@@ -150,6 +151,7 @@ set-proc:
     loadret
     pusharg
     load !ctxt
+    cdr
     car
     push
     call env-set-proc
@@ -159,6 +161,7 @@ set-proc:
 if-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt
+    cdr
     car
     snap @if-predicate-eval-done
         set !expr
@@ -168,11 +171,13 @@ if-proc:
     skipz @if-eval-else-clause
         load !ctxt
         cdr
+        cdr
         car
         set !expr
         call eval-proc
 @if-eval-else-clause:
     load !ctxt
+    cdr
     cdr
     cdr
     skipz @if-no-else-clause
@@ -187,6 +192,7 @@ if-proc:
 and-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt
+    cdr
     car
     snap @and-eval-first-done
         set !expr
@@ -210,6 +216,7 @@ and-proc:
 or-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt
+    cdr
     car
     snap @or-eval-first-done
         set !expr
@@ -220,6 +227,7 @@ or-proc:
         return
 @or-eval-second:
     load !ctxt
+    cdr
     cdr
     car
     snap @or-eval-second-done
@@ -234,6 +242,7 @@ or-proc:
 throw-eval-proc:
 ;-------------------------------------------------------------------------------
     load !ctxt
+    cdr
     car
     snap @throw-eval-expr-done
         set !expr

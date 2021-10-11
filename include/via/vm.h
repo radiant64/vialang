@@ -101,7 +101,8 @@ struct via_value* via_make_proc(
 struct via_value* via_make_form(
     struct via_vm* vm,
     struct via_value* formals,
-    struct via_value* body
+    struct via_value* body,
+    struct via_value* routine
 );
 
 struct via_value** via_make_array(struct via_vm* vm, size_t size);

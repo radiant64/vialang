@@ -77,33 +77,120 @@
         vm->ret = via_make_bool(vm, a OPERATOR b);\
     }
 
+static struct via_value* via_expand_lookup(
+    struct via_value* symbol,
+    struct via_value* meta_var
+) {
+    if (meta_var->v_car == symbol) {
+        return meta_var->v_cdr;
+    }
+
+    return symbol;
+}
+
+static struct via_value* via_expand_recurse(
+    struct via_vm* vm,
+    struct via_value* meta_var,
+    struct via_value* value
+) {
+    if (!value) {
+        return NULL;
+    } else if (value->type == VIA_V_SYMBOL) {
+        return via_expand_lookup(value, meta_var);
+    } else if (value->type == VIA_V_PAIR) {
+        return via_make_pair(
+            vm,
+            via_expand_recurse(vm, meta_var, value->v_car),
+            via_expand_recurse(vm, meta_var, value->v_cdr)
+        );
+    }
+
+    return value;
+}
+
+static void via_expand_template(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    static struct via_vm* cached_instance = NULL;
+    static via_int eval_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        eval_proc = via_asm_label_lookup(vm, "eval-proc");
+    }
+
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+    struct via_value* form = via_reg_ctxt(vm)->v_car;
+
+    const struct via_value* formals = form->v_car;
+    struct via_value* body = form->v_cdr->v_car;
+
+    while (formals) {
+        if (!ctxt) {
+            via_throw(
+                vm,
+                via_except_syntax_error(vm, FORM_INADEQUATE_ARGS)
+            );
+        }
+        
+        body = via_expand_recurse(
+            vm,
+            via_make_pair(vm, formals->v_car, ctxt->v_car),
+            body
+        );
+        formals = formals->v_cdr;
+        ctxt = ctxt->v_cdr;
+    }
+    
+    via_set_expr(vm, body);
+    via_reg_pc(vm)->v_int = eval_proc;
+}
+
 void via_f_syntax_template(struct via_vm* vm) {
     // TODO: Improve address caching.
-    if (!via_reg_ctxt(vm) ) {
+    static struct via_vm* cached_instance = NULL;
+    static via_int expand_template_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        expand_template_proc = via_asm_label_lookup(vm, "expand-template-proc");
+    }
+
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+
+    if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
-    if (via_reg_ctxt(vm)->type != VIA_V_PAIR) {
+    if (ctxt->type != VIA_V_PAIR) {
         via_throw(vm, via_except_syntax_error(vm, MALFORMED_SYNTAX));
         return;
     }
-    struct via_value* symbol = via_reg_ctxt(vm)->v_car;
-    struct via_value* formals = via_reg_ctxt(vm)->v_cdr->v_car;
-    struct via_value* body = via_reg_ctxt(vm)->v_cdr->v_cdr->v_car;
+    struct via_value* symbol = ctxt->v_car;
+    struct via_value* formals = ctxt->v_cdr->v_car;
+    struct via_value* body = ctxt->v_cdr->v_cdr->v_car;
 
-    via_env_set(vm, symbol, via_make_form( vm, formals, body));
+    via_env_set(
+        vm,
+        symbol,
+        via_make_form(
+            vm,
+            formals,
+            body,
+            via_make_builtin(vm, expand_template_proc)
+        )
+    );
 }
 
 void via_f_quote(struct via_vm* vm) {
-    if (via_reg_ctxt(vm)->type != VIA_V_PAIR) {
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+    if (ctxt->type != VIA_V_PAIR) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
-    vm->ret = via_reg_ctxt(vm)->v_car;
+    vm->ret = ctxt->v_car;
 }
 
 void via_f_yield(struct via_vm* vm) {
-    if (via_reg_ctxt(vm)) {
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+    if (ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
@@ -116,25 +203,26 @@ void via_f_yield(struct via_vm* vm) {
 }
 
 void via_f_lambda(struct via_vm* vm) {
-    if (!via_reg_ctxt(vm)) {
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+    if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
-    if (via_reg_ctxt(vm)->type != VIA_V_PAIR) {
+    if (ctxt->type != VIA_V_PAIR) {
         goto throw_syntax_error;
     }
     struct via_value* formals = NULL;
-    struct via_value* cursor = via_reg_ctxt(vm)->v_car;
+    struct via_value* cursor = ctxt->v_car;
     while (cursor) {
         formals = via_make_pair(vm, cursor->v_car, formals);
         cursor = cursor->v_cdr;
     }
-    if (via_reg_ctxt(vm)->v_cdr->type != VIA_V_PAIR) {
+    if (ctxt->v_cdr->type != VIA_V_PAIR) {
         goto throw_syntax_error;
     }
-    struct via_value* body = via_reg_ctxt(vm)->v_cdr->v_car;
+    struct via_value* body = ctxt->v_cdr->v_car;
     vm->ret = via_make_proc(vm, body, formals, via_reg_env(vm)); 
-    if (via_reg_ctxt(vm)->v_cdr->v_cdr) {
+    if (ctxt->v_cdr->v_cdr) {
         goto throw_syntax_error;
     }
 
@@ -145,7 +233,7 @@ throw_syntax_error:
 }
 
 void via_f_catch(struct via_vm* vm) {
-    struct via_value* ctxt = via_reg_ctxt(vm);
+    struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
     if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
@@ -332,6 +420,7 @@ void via_add_core_forms(struct via_vm* vm) {
     via_register_native_form(vm, "or", "or-proc", NULL);
     via_register_native_form(vm, "set!", "set-proc", NULL);
 
+    via_bind(vm, "expand-template-proc", via_expand_template); 
     via_register_form(
         vm,
         "syntax-template",

@@ -293,7 +293,8 @@ struct via_value* via_make_proc(
 struct via_value* via_make_form(
     struct via_vm* vm,
     struct via_value* formals,
-    struct via_value* body
+    struct via_value* body,
+    struct via_value* routine
 ) {
     struct via_value* value = via_make_pair(
         vm,
@@ -301,7 +302,7 @@ struct via_value* via_make_form(
         via_make_pair(
             vm,
             body,
-            NULL
+            routine
         )
     );
     value->type = VIA_V_FORM;
@@ -454,6 +455,7 @@ void via_register_form(
     struct via_value* form = via_make_form(
         vm,
         formals,
+        NULL,
         via_make_builtin(vm, via_bind(vm, asm_label, func))
     );
 
@@ -469,6 +471,7 @@ void via_register_native_form(
     struct via_value* form = via_make_form(
         vm,
         formals,
+        NULL,
         via_make_builtin(vm, via_asm_label_lookup(vm, asm_label))
     );
 
@@ -693,37 +696,6 @@ void via_apply(struct via_vm* vm) {
     via_reg_pc(vm)->v_int = eval_proc;
 }
 
-static struct via_value* via_expand_lookup(
-    struct via_value* symbol,
-    struct via_value* meta_var
-) {
-    if (meta_var->v_car == symbol) {
-        return meta_var->v_cdr;
-    }
-
-    return symbol;
-}
-
-static struct via_value* via_expand_recurse(
-    struct via_vm* vm,
-    struct via_value* meta_var,
-    struct via_value* value
-) {
-    if (!value) {
-        return NULL;
-    } else if (value->type == VIA_V_SYMBOL) {
-        return via_expand_lookup(value, meta_var);
-    } else if (value->type == VIA_V_PAIR) {
-        return via_make_pair(
-            vm,
-            via_expand_recurse(vm, meta_var, value->v_car),
-            via_expand_recurse(vm, meta_var, value->v_cdr)
-        );
-    }
-
-    return value;
-}
-
 void via_expand_form(struct via_vm* vm) {
     // TODO: Improve address caching.
     static struct via_vm* cached_instance = NULL;
@@ -733,30 +705,10 @@ void via_expand_form(struct via_vm* vm) {
         eval_proc = via_asm_label_lookup(vm, "eval-proc");
     }
 
-    const struct via_value* formals = vm->acc->v_car;
-    const struct via_value* ctxt = via_reg_ctxt(vm);
-    struct via_value* body = vm->acc->v_cdr->v_car;
+    struct via_value* routine = vm->acc->v_cdr->v_cdr;
 
-    if (body->type != VIA_V_BUILTIN) {
-        while (formals) {
-            if (!ctxt) {
-                via_throw(
-                    vm,
-                    via_except_syntax_error(vm, FORM_INADEQUATE_ARGS)
-                );
-            }
-            
-            body = via_expand_recurse(
-                vm,
-                via_make_pair(vm, formals->v_car, ctxt->v_car),
-                body
-            );
-            formals = formals->v_cdr;
-            ctxt = ctxt->v_cdr;
-        }
-    }
-
-    via_set_expr(vm, body);
+    via_set_ctxt(vm, via_make_pair(vm, vm->acc, via_reg_ctxt(vm)));
+    via_set_expr(vm, routine);
     via_reg_pc(vm)->v_int = eval_proc;
 }
 
@@ -881,6 +833,12 @@ void via_env_set(
         cursor = cursor->v_cdr;
     }
 
+    DPRINTF(
+        "\t\t%s = %s\n",
+        via_to_string(vm, symbol)->v_string,
+        via_to_string(vm, value)->v_string
+    );
+
     cursor->v_car = via_make_pair(vm, symbol, value);
 }
 
@@ -997,6 +955,7 @@ struct via_value* via_run(struct via_vm* vm) {
     struct via_value* val;
     via_int old_pc;
     via_int op;
+    via_int frame = 0;
     
 process_state:
     op = vm->program[via_reg_pc(vm)->v_int];
@@ -1119,6 +1078,7 @@ process_state:
     case VIA_OP_SNAP:
         DPRINTF("SNAP %" VIA_FMTId "\n", op >> 8);
         val = via_make_frame(vm);
+        DPRINTF("\t\tFrame: %" VIA_FMTId "\n", ++frame);
         via_reg_pc(vm)->v_int += (op >> 8) + 1;
         vm->regs = val; 
         break;
@@ -1129,6 +1089,7 @@ process_state:
         }
         vm->acc = via_reg_parn(vm);
         via_assume_frame(vm);
+        DPRINTF("\t\tFrame: %" VIA_FMTId "\n", --frame);
         break;
     case VIA_OP_JMP:
         DPRINTF("JMP %" VIA_FMTId "\n", op >> 8);
