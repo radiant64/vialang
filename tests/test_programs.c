@@ -165,6 +165,29 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result->v_int == 6);
     END_SECTION
 
+    SECTION("Tail calls")
+        const char* source =
+        "(begin"
+        "  (set-proc! iterate (num)"
+        "             (if (= num 0)"
+        "                 0"
+        "                 (iterate (- num 1))))"
+        "  (iterate 1000))";
+
+        result = via_parse(vm, source);
+
+        REQUIRE(result);
+
+        expr = via_parse_ctx_program(result);
+        via_set_expr(vm, expr->v_car);
+
+        result = via_run_eval(vm);
+
+        REQUIRE(result);
+        REQUIRE(result->type == VIA_V_INT);
+        REQUIRE(result->v_int == 0);
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 
