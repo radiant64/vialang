@@ -332,10 +332,9 @@ void via_p_cdr(struct via_vm* vm) {
 }
 
 void via_p_list(struct via_vm* vm) {
-    struct via_value* arg;
     vm->ret = NULL;
-    for (; via_reg_args(vm) != NULL; arg = via_pop_arg(vm)) {
-        vm->ret = via_make_pair(vm, arg, vm->ret);
+    while (via_reg_args(vm) != NULL) {
+        vm->ret = via_make_pair(vm, via_pop_arg(vm), vm->ret);
     }
 }
 

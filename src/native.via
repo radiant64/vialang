@@ -7,10 +7,10 @@
                             (set! l (lambda (&var) &body))
                             (set-proc! iterate (head tail)
                                        (if (nil? tail)
-                                         (cons (l head) ())
-                                         (cons (l head)
-                                               (iterate (car tail)
-                                                        (cdr tail)))))
+                                         (l head)
+                                         (begin (l head)
+                                                (iterate (car tail)
+                                                         (cdr tail)))))
                             (iterate (car &list) (cdr &list)))))
 
   (set-proc! cadr (pair)
@@ -35,5 +35,11 @@
              (car (cdr (car pair))))
 
   (set-proc! cdadr (pair)
-             (cdr (car (cdr pair)))))
+             (cdr (car (cdr pair))))
+
+  (set-proc! caar (pair)
+             (car (car pair)))
+  
+  (set-proc! cddr (pair)
+             (cdr (cdr pair))))
 
