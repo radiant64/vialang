@@ -184,8 +184,8 @@ cleanup_vm:
 }
 
 struct via_value* via_make_value(struct via_vm* vm) {
-    size_t i;
-    for (i = 0; (i < vm->heap_top + 1) && (vm->heap[i] != NULL); ++i) {
+    size_t i = vm->heap_free;
+    for (; i < vm->heap_top + 1 && (vm->heap[i] != NULL); ++i) {
     }
 
     if (i == vm->heap_cap) {
@@ -205,6 +205,7 @@ struct via_value* via_make_value(struct via_vm* vm) {
     }
     struct via_value* val = via_calloc(sizeof(struct via_value), 1);
     vm->heap[i] = val;
+    vm->heap_free = i + 1;
     val->type = VIA_V_NIL;
     return val;
 }
@@ -884,6 +885,9 @@ static void via_sweep(struct via_vm* vm) {
         if (vm->heap[i] && vm->heap[i]->generation != vm->generation) {
             via_delete_value(vm->heap[i]);
             vm->heap[i] = NULL;
+            if (i < vm->heap_free) {
+                vm->heap_free = i;
+            }
         }
     }
 }

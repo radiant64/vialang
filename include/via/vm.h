@@ -46,6 +46,7 @@ typedef void(*via_bindable)(struct via_vm*);
 struct via_vm {
     struct via_value** heap;
     via_int heap_top;
+    via_int heap_free;
     via_int heap_cap;
 
     via_opcode* program;
