@@ -8,7 +8,7 @@ extern "C" {
 
 struct via_vm;
 
-void via_f_syntax_template(struct via_vm* vm);
+void via_f_syntax_transform(struct via_vm* vm);
 
 void via_f_quote(struct via_vm* vm);
 

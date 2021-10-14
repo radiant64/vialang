@@ -252,3 +252,15 @@ throw-eval-proc:
     push
     call throw-proc
 
+
+;-------------------------------------------------------------------------------
+eval-transform-proc:
+;-------------------------------------------------------------------------------
+    ; Evaluate !expr, and then evaluate the return value as the transformed
+    ; expression.
+    snap 1
+        call eval-proc
+    loadret
+    set !expr
+    call eval-proc
+

@@ -111,10 +111,10 @@ static struct via_value* via_expand_recurse(
 static void via_expand_template(struct via_vm* vm) {
     // TODO: Improve address caching.
     static struct via_vm* cached_instance = NULL;
-    static via_int eval_proc = -1;
+    static via_int eval_transform_proc = -1;
     if (vm != cached_instance) {
         cached_instance = vm;
-        eval_proc = via_asm_label_lookup(vm, "eval-proc");
+        eval_transform_proc = via_asm_label_lookup(vm, "eval-transform-proc");
     }
 
     const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
@@ -141,10 +141,10 @@ static void via_expand_template(struct via_vm* vm) {
     }
     
     via_set_expr(vm, body);
-    via_reg_pc(vm)->v_int = eval_proc;
+    via_reg_pc(vm)->v_int = eval_transform_proc;
 }
 
-void via_f_syntax_template(struct via_vm* vm) {
+void via_f_syntax_transform(struct via_vm* vm) {
     // TODO: Improve address caching.
     static struct via_vm* cached_instance = NULL;
     static via_int expand_template_proc = -1;
@@ -157,10 +157,6 @@ void via_f_syntax_template(struct via_vm* vm) {
 
     if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
-        return;
-    }
-    if (ctxt->type != VIA_V_PAIR) {
-        via_throw(vm, via_except_syntax_error(vm, MALFORMED_SYNTAX));
         return;
     }
     struct via_value* symbol = ctxt->v_car;
@@ -181,7 +177,7 @@ void via_f_syntax_template(struct via_vm* vm) {
 
 void via_f_quote(struct via_vm* vm) {
     const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
-    if (ctxt->type != VIA_V_PAIR) {
+    if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
@@ -273,6 +269,15 @@ void via_p_neq(struct via_vm* vm) {
     COMPARISON(!=)
 }
 
+void via_p_nilp(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (!args || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    vm->ret = via_make_bool(vm, via_pop_arg(vm) == NULL);
+}
+
 void via_p_context(struct via_vm* vm) {
     if (via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, NO_ARGS));
@@ -290,11 +295,14 @@ void via_p_exception(struct via_vm* vm) {
 }
 
 void via_p_cons(struct via_vm* vm) {
-    if (!via_reg_args(vm) || !via_reg_args(vm)->v_cdr) {
+    const struct via_value* args = via_reg_args(vm);
+    if (!args || !args->v_cdr || args->v_cdr) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
-    vm->ret = via_make_pair(vm, via_pop_arg(vm), via_pop_arg(vm));
+    struct via_value* cdr = via_pop_arg(vm);
+    struct via_value* car = via_pop_arg(vm);
+    vm->ret = via_make_pair(vm, car, cdr);
 }
 
 void via_p_car(struct via_vm* vm) {
@@ -423,8 +431,8 @@ void via_add_core_forms(struct via_vm* vm) {
     via_bind(vm, "expand-template-proc", via_expand_template); 
     via_register_form(
         vm,
-        "syntax-template",
-        "syntax-template-proc",
+        "syntax-transform",
+        "syntax-transform-proc",
         via_list(
             vm,
             via_sym(vm, "&syntax-symbol"),
@@ -432,7 +440,7 @@ void via_add_core_forms(struct via_vm* vm) {
             via_sym(vm, "&syntax-template"),
             NULL
         ),
-        via_f_syntax_template
+        via_f_syntax_transform
     );
     via_register_form(vm, "quote", "quote-proc", NULL, via_f_quote);
     via_register_form(vm, "yield", "yield-proc", NULL, via_f_yield);
@@ -446,6 +454,7 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, ">=", "gte-proc", NULL, via_p_gte);
     via_register_proc(vm, "<=", "lte-proc", NULL, via_p_lte);
     via_register_proc(vm, "<>", "neq-proc", NULL, via_p_neq);
+    via_register_proc(vm, "nil?", "nilp-proc", NULL, via_p_nilp);
     via_register_proc(vm, "context", "context-proc", NULL, via_p_context);
     via_register_proc(vm, "exception", "exception-proc", NULL, via_p_exception);
     via_register_proc(vm, "cons", "cons-proc", NULL, via_p_cons);

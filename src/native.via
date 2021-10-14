@@ -1,6 +1,17 @@
 (begin
-  (syntax-template set-proc! (&proc-name &proc-formals &proc-body)
-                   (set! &proc-name (lambda &proc-formals &proc-body)))
+  (syntax-transform set-proc! (&proc-name &proc-formals &proc-body)
+                    (quote (set! &proc-name (lambda &proc-formals &proc-body))))
+
+  (syntax-transform for-each (&list &var &body)
+                   (quote (begin
+                            (set! l (lambda (&var) &body))
+                            (set-proc! iterate (head tail)
+                                       (if (nil? tail)
+                                         (cons (l head) ())
+                                         (cons (l head)
+                                               (iterate (car tail)
+                                                        (cdr tail)))))
+                            (iterate (car &list) (cdr &list)))))
 
   (set-proc! cadr (pair)
              (car (cdr pair)))
