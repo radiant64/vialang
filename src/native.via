@@ -3,15 +3,15 @@
                     (quote (set! &proc-name (lambda &proc-formals &proc-body))))
 
   (syntax-transform for-each (&list &var &body)
-                   (quote (begin
-                            (set! l (lambda (&var) &body))
-                            (set-proc! iterate (head tail)
-                                       (if (nil? tail)
-                                         (l head)
-                                         (begin (l head)
-                                                (iterate (car tail)
-                                                         (cdr tail)))))
-                            (iterate (car &list) (cdr &list)))))
+                    (quote (begin
+                             (set! l (lambda (&var) &body))
+                             (set-proc! iterate (head tail)
+                                        (if (nil? tail)
+                                          (l head)
+                                          (begin (l head)
+                                                 (iterate (car tail)
+                                                          (cdr tail)))))
+                             (iterate (car &list) (cdr &list)))))
 
   (set-proc! cadr (pair)
              (car (cdr pair)))
