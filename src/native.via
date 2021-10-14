@@ -4,11 +4,11 @@
 
   (syntax-transform for-each (&list &var &body)
                     (quote (begin
-                             (set! l (lambda (&var) &body))
+                             (set-proc! realize (&var) &body)
                              (set-proc! iterate (head tail)
                                         (if (nil? tail)
-                                          (l head)
-                                          (begin (l head)
+                                          (realize head)
+                                          (begin (realize head)
                                                  (iterate (car tail)
                                                           (cdr tail)))))
                              (iterate (car &list) (cdr &list)))))
