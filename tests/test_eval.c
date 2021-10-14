@@ -10,7 +10,7 @@ static void test_add(struct via_vm* vm) {
 }
 
 static void test_form(struct via_vm* vm) {
-    vm->ret = via_reg_ctxt(vm)->v_car;
+    vm->ret = via_reg_ctxt(vm)->v_cdr->v_car;
 }
 
 static void test_car(struct via_vm* vm) {
@@ -110,30 +110,6 @@ FIXTURE(test_eval, "Eval")
                 NULL
             )
         );
-
-        SECTION("Native") 
-            struct via_value* form = via_list(
-                vm,
-                via_list(
-                    vm,
-                    via_sym(vm, "car"),
-                    via_list(
-                        vm,
-                        via_sym(vm, "context"),
-                        NULL
-                    ),
-                    NULL
-                ),
-                NULL
-            );
-            form->type = VIA_V_FORM;
-
-            via_env_set(vm, via_sym(vm, "test-form"), form);
-
-            result = via_run_eval(vm);
-
-            REQUIRE(result == via_sym(vm, "test-symbol"));
-        END_SECTION
 
         SECTION("Built in")
             via_register_form(
