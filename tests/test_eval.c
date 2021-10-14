@@ -141,6 +141,42 @@ FIXTURE(test_eval, "Eval")
         REQUIRE(strcmp(result->v_string, "123") == 0);
     END_SECTION
 
+    SECTION("Garbage collection")
+        via_int start = vm->heap_top + 1;
+        struct via_value* foo = via_make_string(vm, "foo");
+        struct via_value* bar = via_make_string(vm, "bar");
+        struct via_value* baz = via_make_string(vm, "baz");
+        struct via_value* quux = via_make_string(vm, "quux");
+        struct via_value* disposable = via_make_string(vm, "test");
+        
+        REQUIRE(vm->heap[start] == foo);
+        REQUIRE(vm->heap[start + 1] == bar);
+        REQUIRE(vm->heap[start + 2] == baz);
+        REQUIRE(vm->heap[start + 3] == quux);
+        REQUIRE(vm->heap[start + 4] == disposable);
+
+        via_set_args(vm, via_list(vm, foo, bar, baz, NULL));
+        struct via_value* frame = via_make_frame(vm);
+        vm->regs = frame;
+        via_set_expr(vm, quux);
+
+        via_garbage_collect(vm);
+
+        REQUIRE(vm->heap[start + 0] == foo);
+        REQUIRE(vm->heap[start + 1] == bar);
+        REQUIRE(vm->heap[start + 2] == baz);
+        REQUIRE(vm->heap[start + 3] == quux);
+        REQUIRE(!vm->heap[start + 4]);
+
+        vm->regs = via_reg_parn(vm);
+
+        via_garbage_collect(vm);
+        
+        REQUIRE(vm->heap[start + 0] == foo);
+        REQUIRE(vm->heap[start + 1] == bar);
+        REQUIRE(vm->heap[start + 2] == baz);
+        REQUIRE(!vm->heap[start + 3]);
+    END_SECTION
     via_free_vm(vm);
 END_FIXTURE
 
