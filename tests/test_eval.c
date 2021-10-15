@@ -1,5 +1,6 @@
 #include <testdrive.h>
 
+#include <via/exceptions.h>
 #include <via/vm.h>
 
 static void test_add(struct via_vm* vm) {
@@ -26,7 +27,7 @@ static void test_context(struct via_vm* vm) {
 }
 
 static void test_throw(struct via_vm* vm) {
-    via_throw(vm, via_make_int(vm, 123));
+    via_throw(vm, via_except_runtime(vm, "test"));
 }
 
 FIXTURE(test_eval, "Eval")
@@ -137,8 +138,7 @@ FIXTURE(test_eval, "Eval")
         
         result = via_run_eval(vm);
 
-        REQUIRE(result->type == VIA_V_INT);
-        REQUIRE(result->v_int == 123);
+        REQUIRE(via_is_exception(vm, result));
     END_SECTION
 
     SECTION("Garbage collection")

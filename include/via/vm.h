@@ -204,6 +204,8 @@ void via_catch(
 
 void via_throw(struct via_vm* vm, struct via_value* exception);
 
+struct via_value* via_backtrace(struct via_vm* vm, struct via_value* frame);
+
 void via_default_exception_handler(struct via_vm* vm);
 
 struct via_value* via_run_eval(struct via_vm* vm);

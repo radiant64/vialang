@@ -640,7 +640,7 @@ static struct via_value* via_to_string_impl(
     case VIA_V_PAIR:
     default:
         if (via_list_contains(sequence, value)) {
-            return via_make_stringview(vm, "<BECOMES CYCLIC>");
+            via_make_stringview(vm, "<BECOMES CYCLIC>");
         }
         sequence = via_list_append(vm, sequence, value);
 
@@ -965,10 +965,36 @@ void via_throw(struct via_vm* vm, struct via_value* exception) {
     via_set_excn(vm, exception);
 }
 
+struct via_value* via_backtrace(struct via_vm* vm, struct via_value* frame) {
+    struct via_value* trace = NULL;
+    while (frame) {
+        trace = via_make_pair(vm, frame->v_arr[VIA_REG_EXPR], trace);
+        frame = frame->v_arr[VIA_REG_PARN];
+    }
+    return trace;
+}
+
 void via_default_exception_handler(struct via_vm* vm) {
-    struct via_value* except_str = via_to_string(vm, via_reg_excn(vm)->v_cdr);
-    fprintf(stdout, "(via) Exception: %s\n", except_str->v_string);
-    via_return_outer(vm, via_reg_excn(vm));
+    struct via_value* excn = via_reg_excn(vm);
+    struct via_value* backtrace = via_backtrace(vm, via_excn_frame(excn));
+    struct via_value* exc_pair = via_make_pair(
+        vm,
+        via_excn_symbol(excn),
+        via_excn_message(excn)
+    );
+    fprintf(
+        stderr,
+        "(via) Exception: %s\nBacktrace:\n", 
+        via_to_string(vm, exc_pair)->v_string
+    );
+    
+    struct via_value* frame = backtrace;
+    while (frame) {
+        fprintf(stderr, "\t%s\n", via_to_string(vm, frame->v_car)->v_string);
+        frame = frame->v_cdr;
+    }
+
+    via_return_outer(vm, excn);
 }
 
 struct via_value* via_run_eval(struct via_vm* vm) {

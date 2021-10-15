@@ -17,6 +17,12 @@ struct via_value* via_make_exception(
     const char* message
 );
 
+struct via_value* via_excn_symbol(struct via_value* exception);
+
+struct via_value* via_excn_message(struct via_value* exception);
+
+struct via_value* via_excn_frame(struct via_value* exception);
+
 struct via_value* via_except_syntax_error(
     struct via_vm* vm,
     const char* message
@@ -43,6 +49,11 @@ struct via_value* via_except_undefined_value(
 );
 
 struct via_value* via_except_out_of_bounds(
+    struct via_vm* vm,
+    const char* message
+);
+
+struct via_value* via_except_runtime(
     struct via_vm* vm,
     const char* message
 );

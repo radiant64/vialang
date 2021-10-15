@@ -32,6 +32,18 @@ struct via_value* via_make_exception(
     );
 }
 
+struct via_value* via_excn_symbol(struct via_value* exception) {
+    return exception->v_cdr->v_car;
+}
+
+struct via_value* via_excn_message(struct via_value* exception) {
+    return exception->v_cdr->v_cdr->v_car;
+}
+
+struct via_value* via_excn_frame(struct via_value* exception) {
+    return exception->v_cdr->v_cdr->v_cdr;
+}
+
 struct via_value* via_except_syntax_error(
     struct via_vm* vm,
     const char* message
@@ -72,5 +84,12 @@ struct via_value* via_except_out_of_bounds(
     const char* message
 ) {
     return via_make_exception(vm, "exc-out-of-bounds", message);
+}
+
+struct via_value* via_except_runtime(
+    struct via_vm* vm,
+    const char* message
+) {
+    return via_make_exception(vm, "exc-runtime", message);
 }
 

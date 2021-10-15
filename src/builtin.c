@@ -364,9 +364,9 @@ void via_p_str_concat(struct via_vm* vm) {
 
     const struct via_value* b = via_pop_arg(vm);
     const struct via_value* a = via_pop_arg(vm);
-    size_t a_len = strlen(a->v_string); 
-    size_t b_len = strlen(b->v_string); 
-    char* strval = via_malloc(a_len + b_len + 1); 
+    size_t a_len = strlen(a->v_string);
+    size_t b_len = strlen(b->v_string);
+    char* strval = via_malloc(a_len + b_len + 1);
     if (!strval) {
         via_throw(vm, via_except_out_of_memory(vm, ALLOC_FAIL));
         return;
@@ -385,16 +385,7 @@ void via_p_backtrace(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    vm->ret = NULL;
-    const struct via_value* frame = via_pop_arg(vm);
-    while (frame) {
-        vm->ret = via_make_pair(
-            vm,
-            via_to_string(vm, frame->v_arr[VIA_REG_EXPR]),
-            vm->ret
-        );
-        frame = frame->v_arr[VIA_REG_PARN];
-    }
+    vm->ret = via_backtrace(vm, via_pop_arg(vm));
 }
 
 void via_p_add(struct via_vm* vm) {
