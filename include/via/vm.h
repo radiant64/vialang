@@ -9,15 +9,6 @@ extern "C" {
 
 struct via_value;
 
-enum via_routines {
-    VIA_EVAL_PROC = 0x01,
-    VIA_EVAL_COMPOUND_PROC = 0x20,
-    VIA_BEGIN_PROC = 0x50,
-    VIA_LOOKUP_PROC = 0x60,
-    VIA_APPLY_PROC = 0x80,
-    VIA_ASSUME_PROC = 0x88,
-};
-
 enum via_reg {
     VIA_REG_PC,
     VIA_REG_EXPR,
