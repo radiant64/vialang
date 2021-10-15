@@ -2,6 +2,7 @@
 
 #include "exception-strings.h"
 
+#include <via/alloc.h>
 #include <via/assembler.h>
 #include <via/exceptions.h>
 #include <via/vm.h>
@@ -354,6 +355,48 @@ void via_p_display(struct via_vm* vm) {
     fprintf(stdout, "\n");
 }
 
+void via_p_str_concat(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || !args->v_cdr || args->v_cdr->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
+        return;
+    }
+
+    const struct via_value* b = via_pop_arg(vm);
+    const struct via_value* a = via_pop_arg(vm);
+    size_t a_len = strlen(a->v_string); 
+    size_t b_len = strlen(b->v_string); 
+    char* strval = via_malloc(a_len + b_len + 1); 
+    if (!strval) {
+        via_throw(vm, via_except_out_of_memory(vm, ALLOC_FAIL));
+        return;
+    }
+
+    memcpy(strval, a->v_string, a_len);
+    memcpy(&strval[a_len], b->v_string, b_len + 1); // Include zero char.
+
+    vm->ret = via_make_value(vm);
+    vm->ret->type = VIA_V_STRING;
+    vm->ret->v_string = strval;
+}
+
+void via_p_backtrace(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    vm->ret = NULL;
+    const struct via_value* frame = via_pop_arg(vm);
+    while (frame) {
+        vm->ret = via_make_pair(
+            vm,
+            via_to_string(vm, frame->v_arr[VIA_REG_EXPR]),
+            vm->ret
+        );
+        frame = frame->v_arr[VIA_REG_PARN];
+    }
+}
+
 void via_p_add(struct via_vm* vm) {
     INFIX_OP(+)
 }
@@ -461,6 +504,14 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "cdr", "cdr-proc", NULL, via_p_cdr);
     via_register_proc(vm, "list", "list-proc", NULL, via_p_list);
     via_register_proc(vm, "display", "display-proc", NULL, via_p_display);
+    via_register_proc(
+        vm,
+        "str-concat",
+        "str-concat-proc",
+        NULL,
+        via_p_str_concat
+    );
+    via_register_proc(vm, "backtrace", "backtrace-proc", NULL, via_p_backtrace);
     via_register_proc(vm, "+", "add-proc", NULL, via_p_add);
     via_register_proc(vm, "-", "sub-proc", NULL, via_p_sub);
     via_register_proc(vm, "*", "mul-proc", NULL, via_p_mul);

@@ -12,4 +12,5 @@
 #define MALFORMED_CATCH "Malformed catch expression"
 #define PAIR_ARG "Function expects a pair argument"
 #define FLOAT_ARG "Function expects a float argument"
+#define ALLOC_FAIL "Host memory allocation failed"
 

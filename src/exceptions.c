@@ -12,8 +12,9 @@ via_bool via_is_exception(struct via_vm* vm, struct via_value* value) {
     );
 }
 
-struct via_value* via_except_syntax_error(
+struct via_value* via_make_exception(
     struct via_vm* vm,
+    const char* symbol,
     const char* message
 ) {
     return via_make_pair(
@@ -21,84 +22,55 @@ struct via_value* via_except_syntax_error(
         via_sym(vm, EXCEPT),
         via_make_pair(
             vm,
-            via_sym(vm, "exc-syntax-error"),
-            via_make_string(vm, message)
+            via_sym(vm, symbol),
+            via_make_pair(
+                vm,
+                via_make_string(vm, message),
+                vm->regs
+            )
         )
     );
+}
+
+struct via_value* via_except_syntax_error(
+    struct via_vm* vm,
+    const char* message
+) {
+    return via_make_exception(vm, "exc-syntax-error", message);
 }
 
 struct via_value* via_except_out_of_memory(
     struct via_vm* vm,
     const char* message
 ) {
-    return via_make_pair(
-        vm,
-        via_sym(vm, EXCEPT),
-        via_make_pair(
-            vm,
-            via_sym(vm, "exc-out-of-memory"),
-            via_make_string(vm, message)
-        )
-    );
+    return via_make_exception(vm, "exc-out-of-memory", message);
 }
 
 struct via_value* via_except_invalid_type(
     struct via_vm* vm,
     const char* message
 ) {
-    return via_make_pair(
-        vm,
-        via_sym(vm, EXCEPT),
-        via_make_pair(
-            vm,
-            via_sym(vm, "exc-invalid-type"),
-            via_make_string(vm, message)
-        )
-    );
+    return via_make_exception(vm, "exc-invalid-type", message);
 }
 
 struct via_value* via_except_argument_error(
     struct via_vm* vm,
     const char* message
 ) {
-    return via_make_pair(
-        vm,
-        via_sym(vm, EXCEPT),
-        via_make_pair(
-            vm,
-            via_sym(vm, "exc-argument-error"),
-            via_make_string(vm, message)
-        )
-    );
+    return via_make_exception(vm, "exc-argument-error", message);
 }
 
 struct via_value* via_except_undefined_value(
     struct via_vm* vm,
     const char* message
 ) {
-    return via_make_pair(
-        vm,
-        via_sym(vm, EXCEPT),
-        via_make_pair(
-            vm,
-            via_sym(vm, "exc-undefined-value"),
-            via_make_string(vm, message)
-        )
-    );
+    return via_make_exception(vm, "exc-undefined-value", message);
 }
 
 struct via_value* via_except_out_of_bounds(
     struct via_vm* vm,
     const char* message
 ) {
-    return via_make_pair(
-        vm,
-        via_sym(vm, EXCEPT),
-        via_make_pair(
-            vm,
-            via_sym(vm, "exc-out-of-bounds"),
-            via_make_string(vm, message)
-        )
-    );
+    return via_make_exception(vm, "exc-out-of-bounds", message);
 }
 

@@ -11,6 +11,12 @@ struct via_vm;
 
 via_bool via_is_exception(struct via_vm* vm, struct via_value* value);
 
+struct via_value* via_make_exception(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* message
+);
+
 struct via_value* via_except_syntax_error(
     struct via_vm* vm,
     const char* message
