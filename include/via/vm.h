@@ -24,13 +24,6 @@ enum via_reg {
     VIA_REG_COUNT
 };
 
-struct via_segment {
-    struct via_value* values;
-    size_t num_values;
-    size_t count;
-    struct via_segment* next;
-};
-
 struct via_vm;
 typedef void(*via_bindable)(struct via_vm*);
 
