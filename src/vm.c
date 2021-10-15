@@ -81,7 +81,7 @@ static void via_env_set_proc(struct via_vm* vm) {
     vm->ret = value;
 }
 
-void via_add_core_routines(struct via_vm* vm) {
+struct via_assembly_result via_add_core_routines(struct via_vm* vm) {
     vm->program[0] = VIA_OP_RETURN;
     vm->write_cursor = 1;
 
@@ -94,7 +94,7 @@ void via_add_core_routines(struct via_vm* vm) {
     via_bind(vm, "throw-proc", via_throw_proc);
 
     // Assemble the native routines.
-    struct via_assembly_result result = via_assemble(vm, builtin_prg); 
+    return via_assemble(vm, builtin_prg); 
 }
 
 struct via_vm* via_create_vm() {
@@ -141,19 +141,50 @@ struct via_vm* via_create_vm() {
         via_set_env(vm, via_make_env(vm));
         via_set_sptr(vm, via_make_int(vm, 0));
 
-        via_add_core_routines(vm);
+        { 
+            struct via_assembly_result result = via_add_core_routines(vm);
+            if (result.status != VIA_ASM_SUCCESS) {
+                fprintf(
+                    stderr,
+                    "Assembler error!\n\tType: %s\n\tCursor: %s\n",
+                    via_asm_error_string(result.status),
+                    result.err_ptr
+                );
+            }
+        }
         via_add_core_forms(vm);
         via_add_core_procedures(vm);
 
         struct via_value* native = via_parse(vm, native_via);
-        if (!native) {
+        if (!via_parse_ctx_matched(native)) {
+            const char* cursor = via_parse_ctx_cursor(native);
+            if (!*cursor) {
+                fprintf(
+                    stderr,
+                    "Parse error at end of bundled code (missing paren?)\n"
+                );
+            } else {
+                fprintf(
+                    stderr,
+                    "Parse error in bundled code: %s (offset %ld)\n",
+                    cursor,
+                    ((intptr_t) cursor) - ((intptr_t) native_via)
+                );
+            }
             goto cleanup_stack;
         }
         
         via_set_expr(vm, via_parse_ctx_program(native)->v_car);
-        struct via_value* native_result = via_run_eval(vm); 
-        if (!native_result) {
-            goto cleanup_stack;
+        {
+            struct via_value* result = via_run_eval(vm); 
+            if (via_is_exception(vm, result)) {
+                fprintf(
+                    stderr,
+                    "Exception in bundled code: %s\n",
+                    via_to_string(vm, result->v_cdr)->v_string
+                );
+                goto cleanup_stack;
+            }
         }
     }
 
@@ -935,9 +966,9 @@ void via_throw(struct via_vm* vm, struct via_value* exception) {
 }
 
 void via_default_exception_handler(struct via_vm* vm) {
-    struct via_value* exception_str = via_to_string(vm, via_reg_excn(vm));
-    fprintf(stdout, "(via) Exception: %s\n", exception_str->v_string);
-    via_return_outer(vm, via_to_string(vm, via_reg_excn(vm)));
+    struct via_value* except_str = via_to_string(vm, via_reg_excn(vm)->v_cdr);
+    fprintf(stdout, "(via) Exception: %s\n", except_str->v_string);
+    via_return_outer(vm, via_reg_excn(vm));
 }
 
 struct via_value* via_run_eval(struct via_vm* vm) {

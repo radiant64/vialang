@@ -137,8 +137,8 @@ FIXTURE(test_eval, "Eval")
         
         result = via_run_eval(vm);
 
-        REQUIRE(result->type == VIA_V_STRING);
-        REQUIRE(strcmp(result->v_string, "123") == 0);
+        REQUIRE(result->type == VIA_V_INT);
+        REQUIRE(result->v_int == 123);
     END_SECTION
 
     SECTION("Garbage collection")

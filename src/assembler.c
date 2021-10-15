@@ -437,6 +437,21 @@ cleanup_labels:
     return result;
 }
 
+const char* via_asm_error_string(enum via_assembly_status status) {
+    switch(status) {
+    case VIA_ASM_SUCCESS:
+        return "SUCCESS";
+    case VIA_ASM_SYNTAX_ERROR:
+        return "SYNTAX_ERROR";
+    case VIA_ASM_UNKNOWN_SYMBOL:
+        return "UNKNOWN_SYMBOL";
+    case VIA_ASM_OUT_OF_MEMORY:
+        return "OUT_OF_MEMORY";
+    default:
+        return "<unknown>";
+    };
+}
+
 via_int via_asm_reserve_prg(struct via_vm* vm, via_int size) {
     via_int cursor = vm->write_cursor;
     while (cursor + size > vm->program_cap) {

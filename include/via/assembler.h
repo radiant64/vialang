@@ -23,6 +23,8 @@ struct via_assembly_result {
 
 struct via_assembly_result via_assemble(struct via_vm* vm, const char* source);
 
+const char* via_asm_error_string(enum via_assembly_status status);
+
 via_int via_asm_reserve_prg(struct via_vm* vm, via_int size);
 
 via_int via_asm_label_lookup(struct via_vm* vm, const char* label);

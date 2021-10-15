@@ -1,5 +1,6 @@
 #include <testdrive.h>
 
+#include <via/exceptions.h>
 #include <via/parse.h>
 #include <via/vm.h>
 
@@ -128,7 +129,7 @@ FIXTURE(test_programs, "Programs")
         result = via_run_eval(vm);
 
         REQUIRE(result);
-        REQUIRE(result->type == VIA_V_STRING);
+        REQUIRE(via_is_exception(vm, result));
     END_SECTION
 
     SECTION("And/or")
