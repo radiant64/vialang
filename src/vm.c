@@ -214,6 +214,43 @@ cleanup_vm:
     return NULL;
 }
 
+static void via_delete_value(struct via_value* value) {
+    switch (value->type) {
+    case VIA_V_STRING:
+    case VIA_V_SYMBOL:
+        via_free((char*) value->v_string);
+        break;
+    case VIA_V_ARRAY:
+    case VIA_V_FRAME:
+        via_free(value->v_arr);
+        break;
+    }
+
+    via_free(value);
+}
+
+void via_free_vm(struct via_vm* vm) {
+    via_free(vm->stack);
+    via_free(vm->bound);
+    via_free(vm->label_addrs);
+
+    for (via_int i = 0; i < vm->labels_count; ++i) {
+        via_free(vm->labels[i]);
+    }
+    via_free(vm->labels);
+
+    via_free(vm->program);
+
+    for (via_int i = 0; i < vm->heap_top; ++i) {
+        if (vm->heap[i]) {
+            via_delete_value(vm->heap[i]);
+        }
+    }
+    via_free(vm->heap);
+
+    via_free(vm);
+}
+
 struct via_value* via_make_value(struct via_vm* vm) {
     size_t i = vm->heap_free;
     for (; i < vm->heap_top + 1 && (vm->heap[i] != NULL); ++i) {
@@ -239,10 +276,6 @@ struct via_value* via_make_value(struct via_vm* vm) {
     vm->heap_free = i + 1;
     val->type = VIA_V_NIL;
     return val;
-}
-
-void via_free_vm(struct via_vm* vm) {
-    via_free(vm);
 }
 
 struct via_value* via_make_int(struct via_vm* vm, via_int v_int) {
@@ -898,21 +931,6 @@ static void via_mark(struct via_value* value, uint8_t generation) {
         }
         break;
     }
-}
-
-static void via_delete_value(struct via_value* value) {
-    switch (value->type) {
-    case VIA_V_STRING:
-    case VIA_V_SYMBOL:
-        via_free((char*) value->v_string);
-        break;
-    case VIA_V_ARRAY:
-    case VIA_V_FRAME:
-        via_free(value->v_arr);
-        break;
-    }
-
-    via_free(value);
 }
 
 static void via_sweep(struct via_vm* vm) {
