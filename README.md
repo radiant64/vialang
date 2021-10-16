@@ -44,7 +44,6 @@ Scheme-inspired language with an embeddable interpreter. Work in progress!
   - Support for generating `pkg-config` and CMake packages.
   - Improved public API.
   - Optional modern C++ API wrapper.
-- Integrated REPL environment.
 
 ## Building
 
