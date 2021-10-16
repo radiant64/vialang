@@ -40,7 +40,47 @@ Scheme-inspired language with an embeddable interpreter. Work in progress!
 - Multi-threading support.
 - JIT compiler.
 - Proper documentation.
+- Better packaging.
+  - Support for generating `pkg-config` and CMake packages.
+  - Improved public API.
+  - Optional modern C++ API wrapper.
 - Integrated REPL environment.
+
+## Building
+
+### Prerequisites
+
+- A reasonably ANSI/ISO C99 conforming compiler supporting the `#pragma once`
+  directive (for example GCC, Clang or Visual C++).
+- CMake 3.12 or later.
+- A build toolchain.
+
+### CMake
+
+A project can be generated using CMake. Support for in-source builds explicitly
+is explicitly disabled. The recommended process is to create a directory named
+`build` in the project root directory, and run CMake from there:
+
+```sh
+cd vialang
+mkdir build
+cd build
+cmake ..
+```
+
+The generated project can then be built using your regular build toolchain
+(or whichever toolchain CMake defaults to, such as
+[Make](<https://en.wikipedia.org/wiki/Make_(software)>)).
+
+#### Example
+
+Building everything and running the included tests, using
+[Make](<https://en.wikipedia.org/wiki/Make_(software)>):
+
+```
+make
+make test
+```
 
 ## Status
 
