@@ -370,6 +370,10 @@ struct via_value* via_make_frame(struct via_vm* vm) {
     }
     frame->v_arr[VIA_REG_PARN] = vm->regs;
 
+    if (vm->regs) {
+    DPRINTF("\t\t\tExpr: %s\n", via_to_string(vm, via_reg_expr(vm))->v_string);
+    }
+
     return frame;
 }
 
@@ -640,7 +644,7 @@ static struct via_value* via_to_string_impl(
     case VIA_V_PAIR:
     default:
         if (via_list_contains(sequence, value)) {
-            via_make_stringview(vm, "<BECOMES CYCLIC>");
+            return via_make_stringview(vm, "<BECOMES CYCLIC>");
         }
         sequence = via_list_append(vm, sequence, value);
 
@@ -976,7 +980,7 @@ struct via_value* via_backtrace(struct via_vm* vm, struct via_value* frame) {
 
 void via_default_exception_handler(struct via_vm* vm) {
     struct via_value* excn = via_reg_excn(vm);
-    struct via_value* backtrace = via_backtrace(vm, via_excn_frame(excn));
+    struct via_value* frame = via_backtrace(vm, via_excn_frame(excn));
     struct via_value* exc_pair = via_make_pair(
         vm,
         via_excn_symbol(excn),
@@ -988,7 +992,6 @@ void via_default_exception_handler(struct via_vm* vm) {
         via_to_string(vm, exc_pair)->v_string
     );
     
-    struct via_value* frame = backtrace;
     while (frame) {
         fprintf(stderr, "\t%s\n", via_to_string(vm, frame->v_car)->v_string);
         frame = frame->v_cdr;
@@ -1152,6 +1155,10 @@ process_state:
         vm->acc = via_reg_parn(vm);
         via_assume_frame(vm);
         DPRINTF("\t\tFrame: %" VIA_FMTId "\n", --frame);
+        DPRINTF(
+            "\t\tExpr: %s\n",
+            via_to_string(vm, via_reg_expr(vm))->v_string
+        );
         break;
     case VIA_OP_JMP:
         DPRINTF("JMP %" VIA_FMTId "\n", op >> 8);

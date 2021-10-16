@@ -49,7 +49,7 @@ eval-compound-proc:
     load !expr
     car
 
-    ; Check if the compound expression is a special form, Special forms are
+    ; Check if the compound expression is a special form. Special forms are
     ; identified by their head value, which must be a symbol literal that
     ; resolves to a form.
     push
@@ -96,11 +96,16 @@ eval-compound-proc:
     cdr
     set !expr
     skipz @no-more-args
+        ; Save !expr on stack and car into its contents before snapping, to
+        ; leave a better stack trace.
+        push
+        car
+        set !expr
         snap @arg-eval-done
-            car
-            set !expr
             call eval-proc
     @arg-eval-done:
+        pop
+        set !expr
         loadret
         pusharg
         load !expr
