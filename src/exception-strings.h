@@ -13,4 +13,6 @@
 #define PAIR_ARG "Function expects a pair argument"
 #define FLOAT_ARG "Function expects a float argument"
 #define ALLOC_FAIL "Host memory allocation failed"
+#define READ_ERROR "Read error"
+#define EXC_TYPE_ERROR "Value is not an exception"
 

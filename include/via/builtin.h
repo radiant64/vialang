@@ -20,7 +20,9 @@ void via_f_set(struct via_vm* vm);
 
 void via_f_catch(struct via_vm* vm);
 
-void via_f_throw(struct via_vm* vm);
+void via_p_eval(struct via_vm* vm);
+
+void via_p_throw(struct via_vm* vm);
 
 void via_p_eq(struct via_vm* vm);
 
@@ -38,6 +40,12 @@ void via_p_context(struct via_vm* vm);
 
 void via_p_exception(struct via_vm* vm);
 
+void via_p_exception_type(struct via_vm* vm);
+
+void via_p_exception_message(struct via_vm* vm);
+
+void via_p_exception_frame(struct via_vm* vm);
+
 void via_p_cons(struct via_vm* vm);
 
 void via_p_car(struct via_vm* vm);
@@ -46,7 +54,13 @@ void via_p_cdr(struct via_vm* vm);
 
 void via_p_list(struct via_vm* vm);
 
+void via_p_print(struct via_vm* vm);
+
 void via_p_display(struct via_vm* vm);
+
+void via_p_read(struct via_vm* vm);
+
+void via_p_str_concat(struct via_vm* vm);
 
 void via_p_add(struct via_vm* vm);
 

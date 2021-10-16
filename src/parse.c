@@ -181,25 +181,51 @@ static via_int via_copy_string(const char* c, char* dest) {
         return -1;
     }
 
+    const char* start = c;
+
     bool escaped = false;
     via_int len = 0;
     while (*c != '"') {
-        if (!escaped && (*c == '\0' || *c == '\n' || *c == '\r')) {
-            return -1;
-        }
-        if (!escaped && *c == '\\') {
-            escaped = true;
-        } else {
-            escaped = false;
-            if (dest) {
-                dest[len] = *c;
+        if (escaped) {
+            char ec = 0;
+            switch (*c) {
+            case 'n':
+                ec = '\n';
+                break;
+            case 'r':
+                ec = '\r';
+                break;
+            case 't':
+                ec = '\t';
+                break;
             }
-            len++;
+            if (ec) {
+                if (dest) {
+                    dest[len] = ec;
+                }
+                len++;
+            }
+            escaped = false;
+        } else {
+            if (*c == '\0' || *c == '\n' || *c == '\r') {
+                return -1;
+            }
+            if (*c == '\\') {
+                escaped = true;
+            } else {
+                if (dest) {
+                    dest[len] = *c;
+                }
+                len++;
+            }
         }
         c++;
     }
     if (dest) {
         dest[len] = '\0';
+        // If writing to buffer, return number of characters read rather than
+        // written, to advance cursor properly!
+        return ((intptr_t) c) - ((intptr_t) start);
     }
 
     return len;

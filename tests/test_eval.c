@@ -27,7 +27,7 @@ static void test_context(struct via_vm* vm) {
 }
 
 static void test_throw(struct via_vm* vm) {
-    via_throw(vm, via_except_runtime(vm, "test"));
+    via_throw(vm, via_except_runtime_error(vm, "test"));
 }
 
 FIXTURE(test_eval, "Eval")

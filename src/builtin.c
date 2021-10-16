@@ -5,6 +5,7 @@
 #include <via/alloc.h>
 #include <via/assembler.h>
 #include <via/exceptions.h>
+#include <via/parse.h>
 #include <via/vm.h>
 
 #include <assert.h>
@@ -230,6 +231,14 @@ throw_syntax_error:
 }
 
 void via_f_catch(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    static struct via_vm* cached_instance = NULL;
+    static via_int eval_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        eval_proc = via_asm_label_lookup(vm, "eval-proc");
+    }
+
     struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
     if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
@@ -244,6 +253,35 @@ void via_f_catch(struct via_vm* vm) {
         return;
     }
     via_catch(vm, ctxt->v_car, ctxt->v_cdr->v_car);
+    via_reg_pc(vm)->v_int = eval_proc;
+}
+
+void via_p_eval(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    static struct via_vm* cached_instance = NULL;
+    static via_int eval_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        eval_proc = via_asm_label_lookup(vm, "eval-proc");
+    }
+
+    via_set_env(vm, via_reg_env(vm)->v_car);
+    via_set_expr(vm, via_pop_arg(vm));
+    via_reg_pc(vm)->v_int = eval_proc;
+}
+
+void via_p_throw(struct via_vm* vm) {
+    struct via_value* excn = via_pop_arg(vm);
+    if (!excn || via_reg_args(vm)) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    if (!via_is_exception(vm, excn)) {
+        via_throw(vm, via_except_invalid_type(vm, EXC_TYPE_ERROR));
+        return;
+    }
+
+    via_throw(vm, excn);
 }
 
 void via_p_eq(struct via_vm* vm) {
@@ -295,9 +333,51 @@ void via_p_exception(struct via_vm* vm) {
     vm->ret = via_reg_excn(vm);
 }
 
+void via_p_exception_type(struct via_vm* vm) {
+    struct via_value* excn = via_pop_arg(vm);
+    if (!excn || via_reg_args(vm)) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    if (!via_is_exception(vm, excn)) {
+        via_throw(vm, via_except_invalid_type(vm, EXC_TYPE_ERROR));
+        return;
+    }
+
+    vm->ret = via_excn_symbol(excn);
+}
+
+void via_p_exception_message(struct via_vm* vm) {
+    struct via_value* excn = via_pop_arg(vm);
+    if (!excn || via_reg_args(vm)) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    if (!via_is_exception(vm, excn)) {
+        via_throw(vm, via_except_invalid_type(vm, EXC_TYPE_ERROR));
+        return;
+    }
+
+    vm->ret = via_excn_message(excn);
+}
+
+void via_p_exception_frame(struct via_vm* vm) {
+    struct via_value* excn = via_pop_arg(vm);
+    if (!excn || via_reg_args(vm)) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    if (!via_is_exception(vm, excn)) {
+        via_throw(vm, via_except_invalid_type(vm, EXC_TYPE_ERROR));
+        return;
+    }
+
+    vm->ret = via_excn_frame(excn);
+}
+
 void via_p_cons(struct via_vm* vm) {
     const struct via_value* args = via_reg_args(vm);
-    if (!args || !args->v_cdr || args->v_cdr) {
+    if (!args || !args->v_cdr || args->v_cdr->v_cdr) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
@@ -339,6 +419,39 @@ void via_p_list(struct via_vm* vm) {
     }
 }
 
+void via_p_print(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    struct via_value* value = via_pop_arg(vm);
+    switch (value->type) {
+    case VIA_V_UNDEFINED:
+        fprintf(stdout, "<UNDEFINED>");
+        break;
+    case VIA_V_NIL:
+        fprintf(stdout, "()");
+        break;
+    case VIA_V_INT:
+        fprintf(stdout, "%" VIA_FMTId, value->v_int);
+        break;
+    case VIA_V_FLOAT:
+        fprintf(stdout, "%f", value->v_float);
+        break;
+    case VIA_V_BOOL:
+        fprintf(stdout, "%s", value->v_bool ? "#t" : "#f");
+        break;
+    case VIA_V_STRING:
+    case VIA_V_STRINGVIEW:
+    case VIA_V_SYMBOL:
+        fprintf(stdout, "%s", value->v_string);
+        break;
+    default:
+        fprintf(stdout, "<COMPOUND>");
+        break;
+    }
+}
+
 void via_p_display(struct via_vm* vm) {
     if (via_reg_args(vm) == NULL) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
@@ -353,6 +466,48 @@ void via_p_display(struct via_vm* vm) {
         list = list->v_cdr;
     }
     fprintf(stdout, "\n");
+}
+
+void via_p_read(struct via_vm* vm) {
+    if (via_reg_args(vm) != NULL) {
+        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
+        return;
+    }
+    char buffer[128];
+    via_int open_parens = 0;
+    struct via_value* out = via_make_string(vm, "");
+    do {
+        char* line = fgets(buffer, 128, stdin);
+        if (feof(stdin)) {
+            via_throw(vm, via_except_end_of_file(vm, ""));
+            return;
+        }
+        if (!line) {
+            via_throw(vm, via_except_io_error(vm, READ_ERROR));
+            return;
+        }
+        const char* cursor = line;
+        while (*cursor) {
+            switch (*cursor) {
+            case '(':
+                open_parens++;
+                break;
+            case ')':
+                open_parens--;
+                break;
+            }
+            cursor++;
+        }
+        vm->regs = via_make_frame(vm);
+        via_set_args(vm, NULL);
+        via_push_arg(vm, out);
+        via_push_arg(vm, via_make_string(vm, line));
+        via_p_str_concat(vm);
+        vm->regs = via_reg_parn(vm);
+        out = vm->ret;
+    } while (open_parens > 0);
+
+    vm->ret = via_parse_ctx_program(via_parse(vm, out->v_string))->v_car;
 }
 
 void via_p_str_concat(struct via_vm* vm) {
@@ -478,9 +633,12 @@ void via_add_core_forms(struct via_vm* vm) {
     via_register_form(vm, "quote", "quote-proc", NULL, via_f_quote);
     via_register_form(vm, "yield", "yield-proc", NULL, via_f_yield);
     via_register_form(vm, "lambda", "lambda-proc", NULL, via_f_lambda);
+    via_register_form(vm, "catch", "catch-proc", NULL, via_f_catch);
 }
 
 void via_add_core_procedures(struct via_vm* vm) {
+    via_register_proc(vm, "eval", "eval-native-proc", NULL, via_p_eval);
+    via_register_proc(vm, "throw", "throw-proc", NULL, via_p_throw);
     via_register_proc(vm, "=", "eq-proc", NULL, via_p_eq);
     via_register_proc(vm, ">", "gt-proc", NULL, via_p_gt);
     via_register_proc(vm, "<", "lt-proc", NULL, via_p_lt);
@@ -490,11 +648,34 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "nil?", "nilp-proc", NULL, via_p_nilp);
     via_register_proc(vm, "context", "context-proc", NULL, via_p_context);
     via_register_proc(vm, "exception", "exception-proc", NULL, via_p_exception);
+    via_register_proc(
+        vm,
+        "exception-type",
+        "exception-type-proc",
+        NULL,
+        via_p_exception_type
+    );
+    via_register_proc(
+        vm,
+        "exception-message",
+        "exception-message-proc",
+        NULL,
+        via_p_exception_message
+    );
+    via_register_proc(
+        vm,
+        "exception-frame",
+        "exception-frame-proc",
+        NULL,
+        via_p_exception_frame
+    );
     via_register_proc(vm, "cons", "cons-proc", NULL, via_p_cons);
     via_register_proc(vm, "car", "car-proc", NULL, via_p_car);
     via_register_proc(vm, "cdr", "cdr-proc", NULL, via_p_cdr);
     via_register_proc(vm, "list", "list-proc", NULL, via_p_list);
+    via_register_proc(vm, "print", "print-proc", NULL, via_p_print);
     via_register_proc(vm, "display", "display-proc", NULL, via_p_display);
+    via_register_proc(vm, "read", "read-proc", NULL, via_p_read);
     via_register_proc(
         vm,
         "str-concat",

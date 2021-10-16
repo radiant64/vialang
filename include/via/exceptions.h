@@ -53,7 +53,17 @@ struct via_value* via_except_out_of_bounds(
     const char* message
 );
 
-struct via_value* via_except_runtime(
+struct via_value* via_except_runtime_error(
+    struct via_vm* vm,
+    const char* message
+);
+
+struct via_value* via_except_io_error(
+    struct via_vm* vm,
+    const char* message
+);
+
+struct via_value* via_except_end_of_file(
     struct via_vm* vm,
     const char* message
 );

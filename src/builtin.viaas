@@ -244,21 +244,6 @@ or-proc:
 
 
 ;-------------------------------------------------------------------------------
-throw-eval-proc:
-;-------------------------------------------------------------------------------
-    load !ctxt
-    cdr
-    car
-    snap @throw-eval-expr-done
-        set !expr
-        call eval-proc
-@throw-eval-expr-done:
-    loadret
-    push
-    call throw-proc
-
-
-;-------------------------------------------------------------------------------
 eval-transform-proc:
 ;-------------------------------------------------------------------------------
     ; Evaluate !expr, and then evaluate the return value as the transformed

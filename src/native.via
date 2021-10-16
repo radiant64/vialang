@@ -13,6 +13,22 @@
                                                           (cdr tail)))))
                              (iterate (car &list) (cdr &list)))))
 
+  (set-proc! repl ()
+             (begin
+               (set-proc! read-eval-print-loop ()
+                          (begin
+                            (print ">>> ")
+                            (display (eval (read)))
+                            (read-eval-print-loop)))
+               (catch (read-eval-print-loop)
+                      (if (= (quote exc-end-of-file)
+                             (exception-type (exception)))
+                        (print "\nEOF, terminating REPL\n")
+                        (begin
+                          (display (cons (exception-type (exception))
+                                         (exception-message (exception))))
+                          (repl))))))
+
   (set-proc! cadr (pair)
              (car (cdr pair)))
 

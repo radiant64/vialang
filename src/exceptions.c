@@ -86,10 +86,24 @@ struct via_value* via_except_out_of_bounds(
     return via_make_exception(vm, "exc-out-of-bounds", message);
 }
 
-struct via_value* via_except_runtime(
+struct via_value* via_except_runtime_error(
     struct via_vm* vm,
     const char* message
 ) {
-    return via_make_exception(vm, "exc-runtime", message);
+    return via_make_exception(vm, "exc-runtime-error", message);
+}
+
+struct via_value* via_except_io_error(
+    struct via_vm* vm,
+    const char* message
+) {
+    return via_make_exception(vm, "exc-io-error", message);
+}
+
+struct via_value* via_except_end_of_file(
+    struct via_vm* vm,
+    const char* message
+) {
+    return via_make_exception(vm, "exc-end-of-file", message);
 }
 

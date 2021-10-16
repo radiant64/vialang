@@ -71,10 +71,6 @@ struct via_value* via_list(struct via_vm* vm, ...) {
     return list;
 }
 
-static void via_throw_proc(struct via_vm* vm) {
-    via_throw(vm, via_pop(vm));
-}
-
 static void via_env_set_proc(struct via_vm* vm) {
     struct via_value* value = via_pop_arg(vm);
     via_env_set(vm, via_pop(vm), value);
@@ -91,7 +87,6 @@ struct via_assembly_result via_add_core_routines(struct via_vm* vm) {
     via_bind(vm, "form-expand-proc", via_expand_form);
     via_bind(vm, "assume-proc", via_assume_frame);
     via_bind(vm, "env-set-proc", via_env_set_proc);
-    via_bind(vm, "throw-proc", via_throw_proc);
 
     // Assemble the native routines.
     return via_assemble(vm, builtin_prg); 
@@ -975,10 +970,14 @@ void via_catch(
         "eval-proc"
     ); 
     handler_frame->v_arr[VIA_REG_EXPR] = handler;
+    handler_frame->v_arr[VIA_REG_PARN] = via_reg_parn(vm);
 
-    vm->regs = via_make_frame(vm);
     via_set_exh(vm, handler_frame);
     via_set_expr(vm, expr);
+    via_reg_pc(vm)->v_int = via_asm_label_lookup(
+        vm,
+        "eval-proc"
+    ); 
 }
 
 void via_throw(struct via_vm* vm, struct via_value* exception) {
@@ -1015,7 +1014,7 @@ void via_default_exception_handler(struct via_vm* vm) {
         frame = frame->v_cdr;
     }
 
-    via_return_outer(vm, excn);
+//    via_return_outer(vm, excn);
 }
 
 struct via_value* via_run_eval(struct via_vm* vm) {
