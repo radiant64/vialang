@@ -82,11 +82,11 @@ struct via_assembly_result via_add_core_routines(struct via_vm* vm) {
     vm->write_cursor = 1;
 
     // Add some builtins.
-    via_bind(vm, "lookup-proc", via_env_lookup);
-    via_bind(vm, "apply-proc", via_apply);
-    via_bind(vm, "form-expand-proc", via_expand_form);
-    via_bind(vm, "assume-proc", via_assume_frame);
-    via_bind(vm, "env-set-proc", via_env_set_proc);
+    via_bind(vm, "lookup-proc", (via_bindable) via_env_lookup);
+    via_bind(vm, "apply-proc", (via_bindable) via_apply);
+    via_bind(vm, "form-expand-proc", (via_bindable) via_expand_form);
+    via_bind(vm, "assume-proc", (via_bindable) via_assume_frame);
+    via_bind(vm, "env-set-proc", (via_bindable) via_env_set_proc);
 
     // Assemble the native routines.
     return via_assemble(vm, builtin_prg); 
@@ -117,16 +117,19 @@ struct via_vm* via_create_vm() {
         }
         vm->labels_cap = DEFAULT_LABELS_CAP;
 
-        vm->bound =
-            via_calloc(DEFAULT_BOUND_SIZE, sizeof(void(*)(struct via_vm*)));
+        vm->bound = via_calloc(DEFAULT_BOUND_SIZE, sizeof(via_bindable));
         if (!vm->bound) {
             goto cleanup_label_addrs;
+        }
+        vm->bound_data = via_calloc(DEFAULT_BOUND_SIZE, sizeof(void*));
+        if (!vm->bound_data) {
+            goto cleanup_bound;
         }
         vm->bound_cap = DEFAULT_BOUND_SIZE;
 
         vm->stack = via_calloc(DEFAULT_STACKSIZE, sizeof(struct via_value*));
         if (!vm->stack) {
-            goto cleanup_bound;
+            goto cleanup_bound_data;
         }
         vm->stack_size = DEFAULT_STACKSIZE;
 
@@ -188,6 +191,9 @@ struct via_vm* via_create_vm() {
 cleanup_stack:
     via_free(vm->stack);
 
+cleanup_bound_data:
+    via_free(vm->bound);
+
 cleanup_bound:
     via_free(vm->bound);
 
@@ -226,6 +232,7 @@ static void via_delete_value(struct via_value* value) {
 
 void via_free_vm(struct via_vm* vm) {
     via_free(vm->stack);
+    via_free(vm->bound_data);
     via_free(vm->bound);
     via_free(vm->label_addrs);
 
@@ -451,6 +458,15 @@ void via_assume_frame(struct via_vm* vm) {
 }
 
 via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
+    return via_bind_context(vm, name, func, NULL);
+};
+
+via_int via_bind_context(
+    struct via_vm* vm,
+    const char* name,
+    via_bindable func,
+    void* user_data
+) {
     if (vm->bound_count == vm->bound_cap) {
         via_bindable* new_bound = via_realloc(
             vm->bound,
@@ -460,31 +476,55 @@ via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
             return -1;
         }
         vm->bound = new_bound;
+        void** new_bound_data = via_realloc(
+            vm->bound_data,
+            sizeof(void*) * vm->bound_cap * 2
+        );
+        if (!new_bound_data) {
+            return -1;
+        }
+        vm->bound_data = new_bound_data;
         vm->bound_cap *= 2;
     }
     const via_int index = vm->bound_count++;
     vm->bound[index] = func;
+    vm->bound_data[index] = user_data;
 
     char buffer[256];
     snprintf(buffer, 256, "%s:\ncallb %" VIA_FMTId "\nreturn", name, index);
     struct via_assembly_result result = via_assemble(vm, buffer); 
 
     return result.addr;
-};
+
+}
 
 void via_register_proc(
     struct via_vm* vm,
     const char* symbol,
     const char* asm_label,
     struct via_value* formals,
-    void(*func)(struct via_vm*)
+    via_bindable func
+) {
+    via_register_proc_context(vm, symbol, asm_label, formals, func, NULL);
+}
+
+void via_register_proc_context(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label,
+    struct via_value* formals,
+    via_bindable func,
+    void* user_data
 ) {
     via_env_set(
         vm,
         via_sym(vm, symbol),
         via_make_proc(
             vm,
-            via_make_builtin(vm, via_bind(vm, asm_label, func)),
+            via_make_builtin(
+                vm,
+                via_bind_context(vm, asm_label, func, user_data)
+            ),
             formals,
             via_reg_env(vm)
         )
@@ -514,13 +554,24 @@ void via_register_form(
     const char* symbol,
     const char* asm_label,
     struct via_value* formals,
-    void(*func)(struct via_vm*)
+    via_bindable func
+) {
+    via_register_form_context(vm, symbol, asm_label, formals, func, NULL);
+}
+
+void via_register_form_context(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label,
+    struct via_value* formals,
+    via_bindable func,
+    void* user_data
 ) {
     struct via_value* form = via_make_form(
         vm,
         formals,
         NULL,
-        via_make_builtin(vm, via_bind(vm, asm_label, func))
+        via_make_builtin(vm, via_bind_context(vm, asm_label, func, user_data))
     );
 
     via_env_set(vm, via_sym(vm, symbol), form);
@@ -1024,7 +1075,11 @@ struct via_value* via_run_eval(struct via_vm* vm) {
         via_reg_expr(vm),
         via_make_builtin(
             vm,
-            via_bind(vm, "default-except-proc", via_default_exception_handler)
+            via_bind(
+                vm,
+                "default-except-proc",
+                (via_bindable) via_default_exception_handler
+            )
         )
     );
     // Replace the current frame with the catch clause. 
@@ -1038,6 +1093,7 @@ struct via_value* via_run(struct via_vm* vm) {
     via_int old_pc;
     via_int op;
     via_int frame = 0;
+    void* data;
     
 process_state:
     op = vm->program[via_reg_pc(vm)->v_int];
@@ -1065,7 +1121,9 @@ process_state:
         break;
     case VIA_OP_CALLB:
         DPRINTF("CALLB %04" VIA_FMTIx "\n", op >> 8);
-        vm->bound[op >> 8](vm);
+        data = vm->bound_data[op >> 8];
+        // Pass the VM instance as context by default.
+        vm->bound[op >> 8](data ? data : vm);
         break;
     case VIA_OP_SET:
         DPRINTF(

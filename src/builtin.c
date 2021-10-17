@@ -616,7 +616,7 @@ void via_add_core_forms(struct via_vm* vm) {
     via_register_native_form(vm, "or", "or-proc", NULL);
     via_register_native_form(vm, "set!", "set-proc", NULL);
 
-    via_bind(vm, "expand-template-proc", via_expand_template); 
+    via_bind(vm, "expand-template-proc", (via_bindable) via_expand_template); 
     via_register_form(
         vm,
         "syntax-transform",
@@ -628,76 +628,148 @@ void via_add_core_forms(struct via_vm* vm) {
             via_sym(vm, "&syntax-template"),
             NULL
         ),
-        via_f_syntax_transform
+        (via_bindable) via_f_syntax_transform
     );
-    via_register_form(vm, "quote", "quote-proc", NULL, via_f_quote);
-    via_register_form(vm, "yield", "yield-proc", NULL, via_f_yield);
-    via_register_form(vm, "lambda", "lambda-proc", NULL, via_f_lambda);
-    via_register_form(vm, "catch", "catch-proc", NULL, via_f_catch);
+    via_register_form(
+        vm,
+        "quote",
+        "quote-proc",
+        NULL,
+        (via_bindable) via_f_quote
+    );
+    via_register_form(
+        vm,
+        "yield",
+        "yield-proc",
+        NULL,
+        (via_bindable) via_f_yield
+    );
+    via_register_form(
+        vm,
+        "lambda",
+        "lambda-proc",
+        NULL,
+        (via_bindable) via_f_lambda
+    );
+    via_register_form(
+        vm,
+        "catch",
+        "catch-proc",
+        NULL,
+        (via_bindable) via_f_catch
+    );
 }
 
 void via_add_core_procedures(struct via_vm* vm) {
-    via_register_proc(vm, "eval", "eval-native-proc", NULL, via_p_eval);
-    via_register_proc(vm, "throw", "throw-proc", NULL, via_p_throw);
-    via_register_proc(vm, "=", "eq-proc", NULL, via_p_eq);
-    via_register_proc(vm, ">", "gt-proc", NULL, via_p_gt);
-    via_register_proc(vm, "<", "lt-proc", NULL, via_p_lt);
-    via_register_proc(vm, ">=", "gte-proc", NULL, via_p_gte);
-    via_register_proc(vm, "<=", "lte-proc", NULL, via_p_lte);
-    via_register_proc(vm, "<>", "neq-proc", NULL, via_p_neq);
-    via_register_proc(vm, "nil?", "nilp-proc", NULL, via_p_nilp);
-    via_register_proc(vm, "context", "context-proc", NULL, via_p_context);
-    via_register_proc(vm, "exception", "exception-proc", NULL, via_p_exception);
+    via_register_proc(
+        vm,
+        "eval",
+        "eval-native-proc",
+        NULL,
+        (via_bindable) via_p_eval
+    );
+    via_register_proc(
+        vm,
+        "throw",
+        "throw-proc",
+        NULL,
+        (via_bindable) via_p_throw
+    );
+    via_register_proc(vm, "=", "eq-proc", NULL, (via_bindable) via_p_eq);
+    via_register_proc(vm, ">", "gt-proc", NULL, (via_bindable) via_p_gt);
+    via_register_proc(vm, "<", "lt-proc", NULL, (via_bindable) via_p_lt);
+    via_register_proc(vm, ">=", "gte-proc", NULL, (via_bindable) via_p_gte);
+    via_register_proc(vm, "<=", "lte-proc", NULL, (via_bindable) via_p_lte);
+    via_register_proc(vm, "<>", "neq-proc", NULL, (via_bindable) via_p_neq);
+    via_register_proc(vm, "nil?", "nilp-proc", NULL, (via_bindable) via_p_nilp);
+    via_register_proc(
+        vm,
+        "context",
+        "context-proc",
+        NULL,
+        (via_bindable) via_p_context
+    );
+    via_register_proc(
+        vm,
+        "exception",
+        "exception-proc",
+        NULL,
+        (via_bindable) via_p_exception
+    );
     via_register_proc(
         vm,
         "exception-type",
         "exception-type-proc",
         NULL,
-        via_p_exception_type
+        (via_bindable) via_p_exception_type
     );
     via_register_proc(
         vm,
         "exception-message",
         "exception-message-proc",
         NULL,
-        via_p_exception_message
+        (via_bindable) via_p_exception_message
     );
     via_register_proc(
         vm,
         "exception-frame",
         "exception-frame-proc",
         NULL,
-        via_p_exception_frame
+        (via_bindable) via_p_exception_frame
     );
-    via_register_proc(vm, "cons", "cons-proc", NULL, via_p_cons);
-    via_register_proc(vm, "car", "car-proc", NULL, via_p_car);
-    via_register_proc(vm, "cdr", "cdr-proc", NULL, via_p_cdr);
-    via_register_proc(vm, "list", "list-proc", NULL, via_p_list);
-    via_register_proc(vm, "print", "print-proc", NULL, via_p_print);
-    via_register_proc(vm, "display", "display-proc", NULL, via_p_display);
-    via_register_proc(vm, "read", "read-proc", NULL, via_p_read);
+    via_register_proc(vm, "cons", "cons-proc", NULL, (via_bindable) via_p_cons);
+    via_register_proc(vm, "car", "car-proc", NULL, (via_bindable) via_p_car);
+    via_register_proc(vm, "cdr", "cdr-proc", NULL, (via_bindable) via_p_cdr);
+    via_register_proc(vm, "list", "list-proc", NULL, (via_bindable) via_p_list);
+    via_register_proc(
+        vm,
+        "print",
+        "print-proc",
+        NULL,
+        (via_bindable) via_p_print
+    );
+    via_register_proc(
+        vm,
+        "display",
+        "display-proc",
+        NULL,
+        (via_bindable) via_p_display
+    );
+    via_register_proc(
+        vm,
+        "read",
+        "read-proc",
+        NULL,
+        (via_bindable) via_p_read
+    );
     via_register_proc(
         vm,
         "str-concat",
         "str-concat-proc",
         NULL,
-        via_p_str_concat
+        (via_bindable) via_p_str_concat
     );
-    via_register_proc(vm, "backtrace", "backtrace-proc", NULL, via_p_backtrace);
-    via_register_proc(vm, "+", "add-proc", NULL, via_p_add);
-    via_register_proc(vm, "-", "sub-proc", NULL, via_p_sub);
-    via_register_proc(vm, "*", "mul-proc", NULL, via_p_mul);
-    via_register_proc(vm, "/", "div-proc", NULL, via_p_div);
-    via_register_proc(vm, "%", "mod-proc", NULL, via_p_mod);
-    via_register_proc(vm, "^", "pow-proc", NULL, via_p_pow);
-    via_register_proc(vm, "sin", "sin-proc", NULL, via_p_sin);
-    via_register_proc(vm, "cos", "cos-proc", NULL, via_p_cos);
+    via_register_proc(
+        vm,
+        "backtrace",
+        "backtrace-proc",
+        NULL,
+        (via_bindable) via_p_backtrace
+    );
+    via_register_proc(vm, "+", "add-proc", NULL, (via_bindable) via_p_add);
+    via_register_proc(vm, "-", "sub-proc", NULL, (via_bindable) via_p_sub);
+    via_register_proc(vm, "*", "mul-proc", NULL, (via_bindable) via_p_mul);
+    via_register_proc(vm, "/", "div-proc", NULL, (via_bindable) via_p_div);
+    via_register_proc(vm, "%", "mod-proc", NULL, (via_bindable) via_p_mod);
+    via_register_proc(vm, "^", "pow-proc", NULL, (via_bindable) via_p_pow);
+    via_register_proc(vm, "sin", "sin-proc", NULL, (via_bindable) via_p_sin);
+    via_register_proc(vm, "cos", "cos-proc", NULL, (via_bindable) via_p_cos);
     via_register_proc(
         vm,
         "garbage-collect",
         "gc-proc",
         NULL,
-        via_p_garbage_collect
+        (via_bindable) via_p_garbage_collect
     );
 }
 

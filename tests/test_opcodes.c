@@ -82,11 +82,15 @@ FIXTURE(test_opcodes, "Opcodes")
     END_SECTION
 
     SECTION("CALLB")
-        const via_int bound = via_bind(vm, "test-proc", test_builtin);
+        const via_int bound = via_bind(
+            vm,
+            "test-proc",
+            (via_bindable) test_builtin
+        );
         const via_int bound_jumping = via_bind(
             vm,
             "jumping-proc",
-            test_jumping_builtin
+            (via_bindable) test_jumping_builtin
         );
         REQUIRE(bound);
         REQUIRE(bound_jumping);

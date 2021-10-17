@@ -25,7 +25,7 @@ enum via_reg {
 };
 
 struct via_vm;
-typedef void(*via_bindable)(struct via_vm*);
+typedef void(*via_bindable)(void* user_data);
 
 struct via_vm {
     struct via_value** heap;
@@ -43,6 +43,7 @@ struct via_vm {
     size_t labels_cap;
 
     via_bindable* bound;
+    void** bound_data;
     size_t bound_count;
     size_t bound_cap;
 
@@ -104,12 +105,28 @@ void via_assume_frame(struct via_vm* vm);
 
 via_int via_bind(struct via_vm* vm, const char* name, via_bindable func);
 
+via_int via_bind_context(
+    struct via_vm* vm,
+    const char* name,
+    via_bindable func,
+    void* user_data
+);
+
 void via_register_proc(
     struct via_vm* vm,
     const char* symbol,
     const char* asm_label,
     struct via_value* formals,
-    void(*func)(struct via_vm*)
+    via_bindable func
+);
+
+void via_register_proc_context(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label,
+    struct via_value* formals,
+    via_bindable func,
+    void* user_data
 );
 
 void via_register_native_proc(
@@ -124,7 +141,16 @@ void via_register_form(
     const char* symbol,
     const char* asm_label,
     struct via_value* formals,
-    void(*func)(struct via_vm*)
+    via_bindable func
+);
+
+void via_register_form_context(
+    struct via_vm* vm,
+    const char* symbol,
+    const char* asm_label,
+    struct via_value* formals,
+    via_bindable func,
+    void* user_data
 );
 
 void via_register_native_form(

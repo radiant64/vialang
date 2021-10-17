@@ -82,7 +82,13 @@ FIXTURE(test_eval, "Eval")
     
     SECTION("Procedure application (builtin)")
         struct via_value* formals = via_formals(vm, "a", "b", NULL);
-        via_register_proc(vm, "test-add", "test-add-proc", formals, test_add);
+        via_register_proc(
+            vm,
+            "test-add",
+            "test-add-proc",
+            formals,
+            (via_bindable) test_add
+        );
 
         via_set_expr(
             vm,
@@ -118,7 +124,7 @@ FIXTURE(test_eval, "Eval")
                 "test-form",
                 "test-form-proc",
                 NULL,
-                test_form
+                (via_bindable) test_form
             );
             result = via_run_eval(vm);
 
@@ -127,7 +133,13 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Exceptions")
-        via_register_proc(vm, "throw-proc", "throw-proc", NULL, test_throw);
+        via_register_proc(
+            vm,
+            "throw-proc",
+            "throw-proc",
+            NULL, 
+            (via_bindable) test_throw
+        );
         via_set_expr(vm,
             via_list(
                 vm,
