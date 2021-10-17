@@ -6,11 +6,21 @@ making a new subfolder called \"build/\" is recommended)."
     )
 endif()
 
-project(via)
+project(via
+    VERSION 1.0.0
+    DESCRIPTION "Embeddable Via interpreter"
+)
 include(CTest)
 enable_testing()
 
 set(CMAKE_C_STANDARD_REQUIRED 1)
+
+configure_file(via.pc.in via.pc @ONLY)
+include(GNUInstallDirs)
+install(
+    FILES ${CMAKE_BINARY_DIR}/via.pc
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig
+)
 
 add_subdirectory(src)
 add_subdirectory(tests)

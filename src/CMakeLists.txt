@@ -1,4 +1,4 @@
-macro(add_embedded BASENAME DATA_FILE APPEND_ZERO VARNAME)
+macro(link_embedded TARGET BASENAME DATA_FILE APPEND_ZERO VARNAME)
     set(PATH "${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}")
     file(MAKE_DIRECTORY "${$ATH}")
     add_custom_command(
@@ -14,8 +14,8 @@ macro(add_embedded BASENAME DATA_FILE APPEND_ZERO VARNAME)
         DEPENDS "${DATA_FILE}"
         VERBATIM
     )
-    add_library(${BASENAME} "${PATH}/${BASENAME}.c")
-    target_include_directories(${BASENAME} PUBLIC "${PATH}")
+    target_sources(${TARGET} PRIVATE "${PATH}/${BASENAME}.c")
+    target_include_directories(${TARGET} PRIVATE "${PATH}")
 endmacro()
 
 set(SOURCES
@@ -26,11 +26,29 @@ set(SOURCES
     parse.c
     vm.c
 )
-add_embedded(builtin-native builtin.viaas 1 builtin_prg)
-add_embedded(native-via native.via 1 native_via)
-add_library(via ${SOURCES})
-target_include_directories(via PUBLIC ../include)
-target_link_libraries(via PUBLIC m PRIVATE builtin-native native-via)
-set_property(TARGET via PROPERTY C_STANDARD 11)
+if(SHARED_LIBRARY)
+    add_library(${PROJECT_NAME} SHARED ${SOURCES} )
+else()
+    add_library(${PROJECT_NAME} STATIC ${SOURCES})
+endif()
+link_embedded(${PROJECT_NAME} builtin-native builtin.viaas 1 builtin_prg)
+link_embedded(${PROJECT_NAME} native-via native.via 1 native_via)
+target_include_directories(${PROJECT_NAME} PUBLIC ../include)
+target_link_libraries(${PROJECT_NAME} PUBLIC m)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 1
+    C_STANDARD 11
+)
 
+install(
+    TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(
+    DIRECTORY ../include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h"
+)
 
