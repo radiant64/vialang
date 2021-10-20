@@ -22,8 +22,7 @@ enum via_type {
     VIA_V_FORM,
     VIA_V_BUILTIN,
     VIA_V_FRAME,
-    VIA_V_SYMBOL,
-    VIA_V_USERDATA_START = 256
+    VIA_V_SYMBOL
 };
 
 enum via_op {
@@ -71,7 +70,6 @@ struct via_value {
             via_int v_size;
             struct via_value** v_arr;
         };
-        void* v_data;
     };
     uint8_t generation;
 };
