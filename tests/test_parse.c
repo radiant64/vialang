@@ -114,7 +114,7 @@ FIXTURE(test_parsing, "Parsing")
             END_SECTION
 
             SECTION("Escaped") 
-                const char* source = "\"test\\\ntest\"";
+                const char* source = "\"test\\ntest\"";
                 result = via_parse(vm, source);
 
                 REQUIRE(result);
