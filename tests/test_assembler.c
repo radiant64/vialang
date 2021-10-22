@@ -34,6 +34,7 @@ FIXTURE(test_assembler, "Assembler")
             VIA_OP_CAR,
             VIA_OP_CDR,
             VIA_OP_CALLACC,
+            VIA_OP_LOADNIL,
             VIA_OP_SETRET,
             VIA_OP_LOADRET,
             VIA_OP_PAIRP,
@@ -65,6 +66,7 @@ FIXTURE(test_assembler, "Assembler")
             "@bar:\n"
             "    callb @bar\n"
             "    set !exh";
+        const size_t initial_labels_count = vm->labels_count;
         struct via_assembly_result result = via_assemble(vm, source);
         const via_opcode expected[] = {
             VIA_OP_CALL | (result.addr << 8),
@@ -79,9 +81,9 @@ FIXTURE(test_assembler, "Assembler")
         for (int i = 0; i < sizeof(expected) / sizeof(via_opcode); ++i) {
             REQUIRE(vm->program[result.addr + i] == expected[i]);
         }
-        REQUIRE(vm->labels_count == 1);
-        REQUIRE(strcmp(vm->labels[0], "foo") == 0);
-        REQUIRE(vm->label_addrs[0] == result.addr);
+        REQUIRE(vm->labels_count == initial_labels_count + 1);
+        REQUIRE(strcmp(vm->labels[initial_labels_count], "foo") == 0);
+        REQUIRE(vm->label_addrs[initial_labels_count] == result.addr);
     END_SECTION
 
     via_free_vm(vm);

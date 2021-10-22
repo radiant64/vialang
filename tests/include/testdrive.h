@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 
-#define TD_VERSION 1.0.1
+#define TD_VERSION 1.1.0
 
 #ifndef TD_MAX_SECTIONS
 #define TD_MAX_SECTIONS 128
@@ -76,15 +76,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         #NAME,\
         DESCRIPTION\
     };\
-    bool TD_TEST_FUNCTION(NAME)(struct td_test_context* td__test_ptr) {\
+    bool TD_TEST_FUNCTION(NAME)(\
+        volatile struct td_test_context* td__test_ptr\
+    ) {\
         TD_ALLOC_SECTIONS(td__test_ptr);\
-        size_t td__path[TD_MAX_NESTING] = { 0 };\
-        size_t td__visited[TD_MAX_NESTING] = { 0 };\
-        size_t td__level = 0;\
-        struct td_test_context* td__root = td__test_ptr;\
-        bool td__retracing = false;\
-        size_t td__target_level = 0;\
-        size_t td__assert_count = 0;\
+        /* Local variables must be volatile if accessed after setjmp(). */\
+        volatile size_t td__path[TD_MAX_NESTING] = { 0 };\
+        volatile size_t td__visited[TD_MAX_NESTING] = { 0 };\
+        volatile size_t td__level = 0;\
+        volatile struct td_test_context* td__root = td__test_ptr;\
+        volatile bool td__retracing = false;\
+        volatile size_t td__target_level = 0;\
+        volatile size_t td__assert_count = 0;\
         TD_EVENT(TD_TEST_START, td__test_ptr);\
         jmp_buf td__begin;\
         jmp_buf* td__continue = &td__begin;\
@@ -148,11 +151,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         } while (td__test_ptr->section_idx > td__path[td__level]++);\
         TD_EVENT(TD_TEST_END, td__test_ptr);\
         {\
-            bool success = true;\
-            for (size_t i = 0; i < td__test_ptr->assert_count; ++i) {\
-                success &= td__test_ptr->assert_success[i];\
-            }\
-            return success ? 0 : 1;\
+            return td__root->num_failed;\
         }\
     }
 
@@ -181,6 +180,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         }), ({\
             td__test_ptr->assert_success[td__test_ptr->assert_count - 1]\
                 = false;\
+            td__root->num_failed++;\
             TD_EVENT(TD_ASSERT_FAILURE, td__test_ptr);\
             longjmp(*td__continue, 1);\
         })\
@@ -190,6 +190,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         CONDITION, ({\
             td__test_ptr->assert_success[td__test_ptr->assert_count - 1]\
                 = false;\
+            td__root->num_failed++;\
             TD_EVENT(TD_ASSERT_FAILURE, td__test_ptr);\
         }), ({\
             td__test_ptr->assert_success[td__test_ptr->assert_count - 1]\
@@ -236,19 +237,20 @@ enum td_event {
 };
 
 struct td_test_context {
-    struct td_test_context* parent;
+    volatile struct td_test_context* parent;
     const char* name;
     const char* description;
     size_t section_idx;
     size_t assert_count;
     bool assert_success[TD_MAX_ASSERTS];
     const char* assertions[TD_MAX_ASSERTS];
-    struct td_test_context* sections;
+    size_t num_failed;
+    volatile struct td_test_context* sections;
 };
 
 static void td_console_listener(
     enum td_event event,
-    struct td_test_context* test,
+    volatile struct td_test_context* test,
     size_t sequence,
     const char* file,
     size_t line
@@ -256,7 +258,7 @@ static void td_console_listener(
 
 static void(*td_listener)(
     enum td_event event,
-    struct td_test_context* test,
+    volatile struct td_test_context* test,
     size_t sequence,
     const char* file,
     size_t line
@@ -287,7 +289,7 @@ static void td__print_ratio(
     );
 }
 
-static size_t td__count_success(struct td_test_context* test) {
+static size_t td__count_success(volatile struct td_test_context* test) {
     size_t count = 0;
     for (size_t i = 0; i < test->assert_count; ++i) {
         count += test->assert_success[i];
@@ -297,7 +299,7 @@ static size_t td__count_success(struct td_test_context* test) {
 
 static void td_console_listener(
     enum td_event event,
-    struct td_test_context* test,
+    volatile struct td_test_context* test,
     size_t sequence,
     const char* file,
     size_t line

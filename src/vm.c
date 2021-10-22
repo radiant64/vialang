@@ -1065,7 +1065,7 @@ void via_default_exception_handler(struct via_vm* vm) {
         frame = frame->v_cdr;
     }
 
-//    via_return_outer(vm, excn);
+    vm->ret = excn;
 }
 
 struct via_value* via_run_eval(struct via_vm* vm) {
