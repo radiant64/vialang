@@ -192,7 +192,7 @@ void via_f_yield(struct via_vm* vm) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
-    struct via_value* retval = via_make_pair(vm, vm->ret, vm->regs);
+//    struct via_value* retval = via_make_pair(vm, vm->ret, vm->regs);
 
     vm->acc = via_reg_parn(vm);
     via_assume_frame(vm);
