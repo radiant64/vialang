@@ -6,29 +6,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct via_value* via_parse_expr(struct via_vm* vm, struct via_value* context);
+const struct via_value* via_parse_expr(
+    struct via_vm* vm,
+    const struct via_value* context
+);
 
-const char* via_parse_ctx_cursor(struct via_value* ctx) {
+const char* via_parse_ctx_cursor(const struct via_value* ctx) {
     return ctx->v_car->v_string;
 }
 
-struct via_value* via_parse_ctx_program(struct via_value* ctx) {
+const struct via_value* via_parse_ctx_program(const struct via_value* ctx) {
     return ctx->v_cdr->v_car;
 }
 
-via_bool via_parse_ctx_matched(struct via_value* ctx) {
+via_bool via_parse_ctx_matched(const struct via_value* ctx) {
     return ctx->v_cdr->v_cdr->v_car->v_bool;
 }
 
-struct via_value* via_parse_ctx_parent(struct via_value* ctx) {
+const struct via_value* via_parse_ctx_parent(const struct via_value* ctx) {
     return ctx->v_cdr->v_cdr->v_cdr->v_car;
 }
 
-struct via_value* via_create_parse_ctx(
+const struct via_value* via_create_parse_ctx(
     struct via_vm* vm,
     const char* cursor,
-    struct via_value* program,
-    struct via_value* parent,
+    const struct via_value* program,
+    const struct via_value* parent,
     via_bool matched
 ) {
     return via_make_pair(
@@ -50,9 +53,9 @@ struct via_value* via_create_parse_ctx(
     );
 }
 
-struct via_value* via_parse_ctx_make_unmatched(
+const struct via_value* via_parse_ctx_make_unmatched(
     struct via_vm* vm,
-    struct via_value* ctx
+    const struct via_value* ctx
 ) {
     return via_create_parse_ctx(
         vm,
@@ -63,13 +66,13 @@ struct via_value* via_parse_ctx_make_unmatched(
     );
 }
 
-struct via_value* via_parse_ctx_program_add(
+const struct via_value* via_parse_ctx_program_add(
     struct via_vm* vm,
-    struct via_value* ctx,
+    const struct via_value* ctx,
     const char* cursor,
-    struct via_value* val
+    const struct via_value* val
 ) {
-    struct via_value* program = via_parse_ctx_program(ctx);
+    const struct via_value* program = via_parse_ctx_program(ctx);
     if (!program) {
         return via_create_parse_ctx(
             vm,
@@ -84,7 +87,7 @@ struct via_value* via_parse_ctx_program_add(
         program = program->v_cdr;
     }
 
-    program->v_cdr = via_make_pair(vm, val, NULL);
+    ((struct via_value*) program)->v_cdr = via_make_pair(vm, val, NULL);
 
     return via_create_parse_ctx(
         vm,
@@ -99,9 +102,9 @@ static via_bool is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-struct via_value* via_parse_whitespace(
+const struct via_value* via_parse_whitespace(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     const char* c = via_parse_ctx_cursor(context);
 
@@ -133,7 +136,10 @@ static via_bool terminates_value(char c) {
         || c == ';' || c == '\0';
 }
 
-struct via_value* via_parse_int(struct via_vm* vm, struct via_value* context) {
+const struct via_value* via_parse_int(
+    struct via_vm* vm,
+    const struct via_value* context
+) {
     const char* c = via_parse_ctx_cursor(context);
     char* end;
     via_int value = strtol(c, &end, 10);
@@ -144,9 +150,9 @@ struct via_value* via_parse_int(struct via_vm* vm, struct via_value* context) {
     return via_parse_ctx_program_add(vm, context, end, via_make_int(vm, value));
 }
 
-struct via_value* via_parse_float(
+const struct via_value* via_parse_float(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     const char* c = via_parse_ctx_cursor(context);
     char* end;
@@ -163,7 +169,10 @@ struct via_value* via_parse_float(
     );
 }
 
-struct via_value* via_parse_bool(struct via_vm* vm, struct via_value* context) {
+const struct via_value* via_parse_bool(
+    struct via_vm* vm,
+    const struct via_value* context
+) {
     const char* c = via_parse_ctx_cursor(context);
     if (c[0] == '#' && (c[1] == 't' || c[1] == 'f') && terminates_value(c[2])) {
         return via_parse_ctx_program_add(
@@ -231,9 +240,9 @@ static via_int via_copy_string(const char* c, char* dest) {
     return len;
 }
 
-struct via_value* via_parse_string(
+const struct via_value* via_parse_string(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     const char* c = via_parse_ctx_cursor(context);
     via_int len = via_copy_string(c, NULL);
@@ -250,9 +259,9 @@ struct via_value* via_parse_string(
     return via_parse_ctx_program_add(vm, context, c, val);
 }
 
-struct via_value* via_parse_symbol(
+const struct via_value* via_parse_symbol(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     const char* start = via_parse_ctx_cursor(context);
     const char* c = start;
@@ -272,16 +281,19 @@ struct via_value* via_parse_symbol(
     memcpy(buffer, start, c - start);
     buffer[c - start] = '\0';
 
-    struct via_value* symbol = via_sym(vm, buffer);
+    const struct via_value* symbol = via_sym(vm, buffer);
 
     return via_parse_ctx_program_add(vm, context, c, symbol);
 }
 
-typedef struct via_value*(*parse_func)(struct via_vm*, struct via_value*);
+typedef const struct via_value*(*parse_func)(
+    struct via_vm*,
+    const struct via_value*
+);
 
-struct via_value* via_parse_value(
+const struct via_value* via_parse_value(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     static const parse_func parsers[] = {
         via_parse_int,
@@ -302,9 +314,9 @@ struct via_value* via_parse_value(
     return via_parse_ctx_make_unmatched(vm, context);
 }
 
-struct via_value* via_parse_oparen(
+const struct via_value* via_parse_oparen(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     const char* c = via_parse_ctx_cursor(context);
     if (*c != '(') {
@@ -324,16 +336,16 @@ struct via_value* via_parse_oparen(
     );
 }
 
-struct via_value* via_parse_cparen(
+const struct via_value* via_parse_cparen(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     const char* c = via_parse_ctx_cursor(context);
     if (*c != ')') {
         return via_parse_ctx_make_unmatched(vm, context);
     }
         
-    struct via_value* parent = via_create_parse_ctx(
+    const struct via_value* parent = via_create_parse_ctx(
         vm,
         c + 1,
         via_parse_ctx_parent(context)->v_car,
@@ -349,9 +361,9 @@ struct via_value* via_parse_cparen(
     );
 }
 
-struct via_value* via_parse_sexpr(
+const struct via_value* via_parse_sexpr(
     struct via_vm* vm,
-    struct via_value* context
+    const struct via_value* context
 ) {
     context = via_parse_value(vm, context);
 
@@ -374,7 +386,10 @@ struct via_value* via_parse_sexpr(
     return context;
 }
 
-struct via_value* via_parse_expr(struct via_vm* vm, struct via_value* context) {
+const struct via_value* via_parse_expr(
+    struct via_vm* vm,
+    const struct via_value* context
+) {
     context = via_parse_sexpr(vm, via_parse_whitespace(vm, context));
     if (!via_parse_ctx_matched(context)) {
         return via_parse_ctx_make_unmatched(vm, context);
@@ -382,8 +397,8 @@ struct via_value* via_parse_expr(struct via_vm* vm, struct via_value* context) {
     return via_parse_whitespace(vm, context);
 }
 
-struct via_value* via_parse(struct via_vm* vm, const char* source) {
-    struct via_value* context = via_create_parse_ctx(
+const struct via_value* via_parse(struct via_vm* vm, const char* source) {
+    const struct via_value* context = via_create_parse_ctx(
         vm,
         source,
         NULL,

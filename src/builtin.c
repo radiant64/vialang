@@ -79,9 +79,9 @@
         vm->ret = via_make_bool(vm, a OPERATOR b);\
     }
 
-static struct via_value* via_expand_lookup(
-    struct via_value* symbol,
-    struct via_value* meta_var
+static const struct via_value* via_expand_lookup(
+    const struct via_value* symbol,
+    const struct via_value* meta_var
 ) {
     if (meta_var->v_car == symbol) {
         return meta_var->v_cdr;
@@ -90,10 +90,10 @@ static struct via_value* via_expand_lookup(
     return symbol;
 }
 
-static struct via_value* via_expand_recurse(
+static const struct via_value* via_expand_recurse(
     struct via_vm* vm,
-    struct via_value* meta_var,
-    struct via_value* value
+    const struct via_value* meta_var,
+    const struct via_value* value
 ) {
     if (!value) {
         return NULL;
@@ -120,10 +120,10 @@ static void via_expand_template(struct via_vm* vm) {
     }
 
     const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
-    struct via_value* form = via_reg_ctxt(vm)->v_car;
+    const struct via_value* form = via_reg_ctxt(vm)->v_car;
 
     const struct via_value* formals = form->v_car;
-    struct via_value* body = form->v_cdr->v_car;
+    const struct via_value* body = form->v_cdr->v_car;
 
     while (formals) {
         if (!ctxt) {
@@ -161,9 +161,9 @@ void via_f_syntax_transform(struct via_vm* vm) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
-    struct via_value* symbol = ctxt->v_car;
-    struct via_value* formals = ctxt->v_cdr->v_car;
-    struct via_value* body = ctxt->v_cdr->v_cdr->v_car;
+    const struct via_value* symbol = ctxt->v_car;
+    const struct via_value* formals = ctxt->v_cdr->v_car;
+    const struct via_value* body = ctxt->v_cdr->v_cdr->v_car;
 
     via_env_set(
         vm,
@@ -209,8 +209,8 @@ void via_f_lambda(struct via_vm* vm) {
     if (ctxt->type != VIA_V_PAIR) {
         goto throw_syntax_error;
     }
-    struct via_value* formals = NULL;
-    struct via_value* cursor = ctxt->v_car;
+    const struct via_value* formals = NULL;
+    const struct via_value* cursor = ctxt->v_car;
     while (cursor) {
         formals = via_make_pair(vm, cursor->v_car, formals);
         cursor = cursor->v_cdr;
@@ -218,7 +218,7 @@ void via_f_lambda(struct via_vm* vm) {
     if (ctxt->v_cdr->type != VIA_V_PAIR) {
         goto throw_syntax_error;
     }
-    struct via_value* body = ctxt->v_cdr->v_car;
+    const struct via_value* body = ctxt->v_cdr->v_car;
     vm->ret = via_make_proc(vm, body, formals, via_reg_env(vm)); 
     if (ctxt->v_cdr->v_cdr) {
         goto throw_syntax_error;
@@ -239,7 +239,7 @@ void via_f_catch(struct via_vm* vm) {
         eval_proc = via_asm_label_lookup(vm, "eval-proc");
     }
 
-    struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
     if (!ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
@@ -271,7 +271,7 @@ void via_p_eval(struct via_vm* vm) {
 }
 
 void via_p_throw(struct via_vm* vm) {
-    struct via_value* excn = via_pop_arg(vm);
+    const struct via_value* excn = via_pop_arg(vm);
     if (!excn || via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
@@ -334,7 +334,7 @@ void via_p_exception(struct via_vm* vm) {
 }
 
 void via_p_exception_type(struct via_vm* vm) {
-    struct via_value* excn = via_pop_arg(vm);
+    const struct via_value* excn = via_pop_arg(vm);
     if (!excn || via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
@@ -348,7 +348,7 @@ void via_p_exception_type(struct via_vm* vm) {
 }
 
 void via_p_exception_message(struct via_vm* vm) {
-    struct via_value* excn = via_pop_arg(vm);
+    const struct via_value* excn = via_pop_arg(vm);
     if (!excn || via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
@@ -362,7 +362,7 @@ void via_p_exception_message(struct via_vm* vm) {
 }
 
 void via_p_exception_frame(struct via_vm* vm) {
-    struct via_value* excn = via_pop_arg(vm);
+    const struct via_value* excn = via_pop_arg(vm);
     if (!excn || via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
@@ -381,8 +381,8 @@ void via_p_cons(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
-    struct via_value* cdr = via_pop_arg(vm);
-    struct via_value* car = via_pop_arg(vm);
+    const struct via_value* cdr = via_pop_arg(vm);
+    const struct via_value* car = via_pop_arg(vm);
     vm->ret = via_make_pair(vm, car, cdr);
 }
 
@@ -424,7 +424,7 @@ void via_p_print(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    struct via_value* value = via_pop_arg(vm);
+    const struct via_value* value = via_pop_arg(vm);
     switch (value->type) {
     case VIA_V_UNDEFINED:
         fprintf(stdout, "<UNDEFINED>");
@@ -457,7 +457,7 @@ void via_p_display(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    struct via_value* list = NULL;
+    const struct via_value* list = NULL;
     for (; via_reg_args(vm); list = via_make_pair(vm, via_pop_arg(vm), list)) {
     }
 
@@ -475,7 +475,7 @@ void via_p_read(struct via_vm* vm) {
     }
     char buffer[128];
     via_int open_parens = 0;
-    struct via_value* out = via_make_string(vm, "");
+    const struct via_value* out = via_make_string(vm, "");
     do {
         char* line = fgets(buffer, 128, stdin);
         if (feof(stdin)) {
@@ -498,12 +498,12 @@ void via_p_read(struct via_vm* vm) {
             }
             cursor++;
         }
-        vm->regs = via_make_frame(vm);
+        vm->regs = (struct via_value*) via_make_frame(vm);
         via_set_args(vm, NULL);
         via_push_arg(vm, out);
         via_push_arg(vm, via_make_string(vm, line));
         via_p_str_concat(vm);
-        vm->regs = via_reg_parn(vm);
+        vm->regs = (struct via_value*) via_reg_parn(vm);
         out = vm->ret;
     } while (open_parens > 0);
 
@@ -530,9 +530,11 @@ void via_p_str_concat(struct via_vm* vm) {
     memcpy(strval, a->v_string, a_len);
     memcpy(&strval[a_len], b->v_string, b_len + 1); // Include zero char.
 
-    vm->ret = via_make_value(vm);
-    vm->ret->type = VIA_V_STRING;
-    vm->ret->v_string = strval;
+    struct via_value* val = via_make_value(vm);
+    val->type = VIA_V_STRING;
+    val->v_string = strval;
+    
+    vm->ret = val;
 }
 
 void via_p_backtrace(struct via_vm* vm) {

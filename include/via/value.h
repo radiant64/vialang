@@ -63,12 +63,12 @@ struct via_value {
         const char* v_string;
         const char* v_symbol;
         struct {
-            struct via_value* v_car;
-            struct via_value* v_cdr;
+            const struct via_value* v_car;
+            const struct via_value* v_cdr;
         };
         struct {
             via_int v_size;
-            struct via_value** v_arr;
+            const struct via_value** v_arr;
         };
     };
     uint8_t generation;
