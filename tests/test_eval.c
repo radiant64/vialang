@@ -4,8 +4,8 @@
 #include <via/vm.h>
 
 static void test_add(struct via_vm* vm) {
-    struct via_value* a = via_get(vm, "a");
-    struct via_value* b = via_get(vm, "b");
+    const struct via_value* a = via_get(vm, "a");
+    const struct via_value* b = via_get(vm, "b");
 
     vm->ret = via_make_int(vm, a->v_int - b->v_int);
 }
@@ -34,7 +34,7 @@ FIXTURE(test_eval, "Eval")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
 
-    struct via_value* result;
+    const struct via_value* result;
 
     SECTION("Literal value")
         via_set_expr(vm, via_make_int(vm, 0));
@@ -56,7 +56,7 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
 
     SECTION("Procedure application")
-        struct via_value* proc = via_make_proc(
+        const struct via_value* proc = via_make_proc(
             vm,
             via_sym(vm, "value"),
             via_formals(vm, "value", NULL),
@@ -81,7 +81,7 @@ FIXTURE(test_eval, "Eval")
     END_SECTION
     
     SECTION("Procedure application (builtin)")
-        struct via_value* formals = via_formals(vm, "a", "b", NULL);
+        const struct via_value* formals = via_formals(vm, "a", "b", NULL);
         via_register_proc(
             vm,
             "test-add",
@@ -155,11 +155,11 @@ FIXTURE(test_eval, "Eval")
 
     SECTION("Garbage collection")
         via_int start = vm->heap_top + 1;
-        struct via_value* foo = via_make_string(vm, "foo");
-        struct via_value* bar = via_make_string(vm, "bar");
-        struct via_value* baz = via_make_string(vm, "baz");
-        struct via_value* quux = via_make_string(vm, "quux");
-        struct via_value* disposable = via_make_string(vm, "test");
+        const struct via_value* foo = via_make_string(vm, "foo");
+        const struct via_value* bar = via_make_string(vm, "bar");
+        const struct via_value* baz = via_make_string(vm, "baz");
+        const struct via_value* quux = via_make_string(vm, "quux");
+        const struct via_value* disposable = via_make_string(vm, "test");
         
         REQUIRE(vm->heap[start] == foo);
         REQUIRE(vm->heap[start + 1] == bar);
@@ -168,8 +168,8 @@ FIXTURE(test_eval, "Eval")
         REQUIRE(vm->heap[start + 4] == disposable);
 
         via_set_args(vm, via_list(vm, foo, bar, baz, NULL));
-        struct via_value* frame = via_make_frame(vm);
-        vm->regs = frame;
+        const struct via_value* frame = via_make_frame(vm);
+        vm->regs = (struct via_value*) frame;
         via_set_expr(vm, quux);
 
         via_garbage_collect(vm);
@@ -180,7 +180,7 @@ FIXTURE(test_eval, "Eval")
         REQUIRE(vm->heap[start + 3] == quux);
         REQUIRE(!vm->heap[start + 4]);
 
-        vm->regs = via_reg_parn(vm);
+        vm->regs = (struct via_value*) via_reg_parn(vm);
 
         via_garbage_collect(vm);
         

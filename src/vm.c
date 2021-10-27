@@ -457,23 +457,23 @@ const struct via_value* via_sym(struct via_vm* vm, const char* name) {
         }
     }
 
-    entry = via_make_string(vm, name);
+    entry = (struct via_value*) via_make_string(vm, name);
     entry->type = VIA_V_SYMBOL;
 
-    cursor->v_cdr = via_make_pair(vm, entry, NULL);
+    ((struct via_value*) cursor)->v_cdr = via_make_pair(vm, entry, NULL);
 
     return cursor->v_cdr->v_car;
 }
 
 void via_return_outer(struct via_vm* vm, const struct via_value* value) {
     vm->ret = value;
-    vm->regs = via_reg_parn(vm);
+    vm->regs = (struct via_value*) via_reg_parn(vm);
     via_reg_pc(vm)->v_int = 0;
 }
 
 void via_assume_frame(struct via_vm* vm) {
     assert(vm->acc->type == VIA_V_FRAME);
-    vm->regs = vm->acc;
+    vm->regs = (struct via_value*) vm->acc;
 }
 
 via_int via_bind(struct via_vm* vm, const char* name, via_bindable func) {
@@ -613,8 +613,8 @@ void via_register_native_form(
 }
 
 const struct via_value* via_get(struct via_vm* vm, const char* symbol_name) {
-    struct via_value* tmp_acc = vm->acc;
-    struct via_value* tmp_ret = vm->ret;
+    const struct via_value* tmp_acc = vm->acc;
+    const struct via_value* tmp_ret = vm->ret;
 
     vm->acc = via_sym(vm, symbol_name);
     via_env_lookup(vm);
@@ -670,7 +670,7 @@ static const struct via_value* via_list_append(
         for (; list->v_cdr; list = list->v_cdr) {
         }
         
-        (struct via_value*) list->v_cdr = via_make_pair(vm, value, NULL);
+        ((struct via_value*) list)->v_cdr = via_make_pair(vm, value, NULL);
     }
 
     return head;
@@ -777,7 +777,7 @@ const struct via_value* via_to_string(
 void via_push(struct via_vm* vm, const struct via_value* value) {
     const via_int top = via_reg_sptr(vm)->v_int;
     if (top == vm->stack_size) {
-        struct via_value* const* new_stack = via_realloc(
+        const struct via_value** new_stack = via_realloc(
             vm->stack,
             sizeof(struct via_value*) * vm->stack_size * 2
         );
@@ -877,8 +877,8 @@ const struct via_value* via_reg_exh(struct via_vm* vm) {
     return vm->regs->v_arr[VIA_REG_EXH];
 }
 
-const struct via_value* via_reg_sptr(struct via_vm* vm) {
-    return vm->regs->v_arr[VIA_REG_SPTR];
+struct via_value* via_reg_sptr(struct via_vm* vm) {
+    return (struct via_value*) vm->regs->v_arr[VIA_REG_SPTR];
 }
 
 const struct via_value* via_reg_ctxt(struct via_vm* vm) {
@@ -946,8 +946,9 @@ void via_env_lookup(struct via_vm* vm) {
         env = env->v_car;
     } while (env);
 
-    vm->ret = via_make_value(vm);
-    vm->ret->type = VIA_V_UNDEFINED;
+    struct via_value* result = via_make_value(vm);
+    result->type = VIA_V_UNDEFINED;
+    vm->ret = result;
 }
 
 void via_env_set(
@@ -966,7 +967,7 @@ void via_env_set(
         } while (!found && cursor->v_cdr);
     } 
     if (!found) {
-        (struct via_value*) cursor->v_cdr = via_make_pair(vm, NULL, NULL);
+        ((struct via_value*) cursor)->v_cdr = via_make_pair(vm, NULL, NULL);
         cursor = cursor->v_cdr;
     }
 
@@ -976,7 +977,7 @@ void via_env_set(
         via_to_string(vm, value)->v_string
     );
 
-    (struct via_value*) cursor->v_car = via_make_pair(vm, symbol, value);
+    ((struct via_value*) cursor)->v_car = via_make_pair(vm, symbol, value);
 }
 
 static void via_mark(struct via_value* value, uint8_t generation) {
@@ -1017,13 +1018,13 @@ void via_garbage_collect(struct via_vm* vm) {
     // Marking.
 
     vm->generation++;
-    via_mark(vm->acc, vm->generation);
-    via_mark(vm->ret, vm->generation);
+    via_mark((struct via_value*) vm->acc, vm->generation);
+    via_mark((struct via_value*) vm->ret, vm->generation);
     for (size_t i = 0; i < VIA_REG_COUNT; ++i) {
-        via_mark(vm->regs, vm->generation);
+        via_mark((struct via_value*) vm->regs, vm->generation);
     }
     for (size_t i = 0; vm->stack[i] && i < vm->stack_size; ++i) {
-        via_mark(vm->stack[i], vm->generation);
+        via_mark((struct via_value*) vm->stack[i], vm->generation);
     }
     via_mark(vm->symbols, vm->generation);
 
@@ -1038,10 +1039,11 @@ void via_catch(
     const struct via_value* handler
 ) {
     struct via_value* handler_frame = (struct via_value*) via_make_frame(vm);
-    handler_frame->v_arr[VIA_REG_PC]->v_int = via_asm_label_lookup(
-        vm,
-        "eval-proc"
-    ); 
+    ((struct via_value*) handler_frame->v_arr[VIA_REG_PC])->v_int =
+        via_asm_label_lookup(
+            vm,
+            "eval-proc"
+        ); 
     handler_frame->v_arr[VIA_REG_EXPR] = handler;
     handler_frame->v_arr[VIA_REG_PARN] = via_reg_parn(vm);
 

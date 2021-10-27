@@ -20,7 +20,7 @@ FIXTURE(test_opcodes, "Opcodes")
 
     via_reg_pc(vm)->v_int = test_addr;
 
-    struct via_value* result;
+    const struct via_value* result = NULL;
     
     // Test values.
     struct via_value* foo = via_make_value(vm);

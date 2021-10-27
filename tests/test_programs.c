@@ -10,8 +10,8 @@ FIXTURE(test_programs, "Programs")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
 
-    struct via_value* result;
-    struct via_value* expr;
+    const struct via_value* result;
+    const struct via_value* expr;
 
     SECTION("Quoted symbol")
         const char* source = "(quote test-symbol)";

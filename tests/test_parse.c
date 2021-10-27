@@ -9,8 +9,8 @@ FIXTURE(test_parsing, "Parsing")
     struct via_vm* vm = via_create_vm();
     REQUIRE(vm);
 
-    struct via_value* result;
-    struct via_value* expr;
+    const struct via_value* result;
+    const struct via_value* expr;
 
     SECTION("Literals")
         SECTION("int")
