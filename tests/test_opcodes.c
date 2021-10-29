@@ -3,7 +3,7 @@
 #include <via/vm.h>
 
 static via_bool builtin_called;
-static const via_int test_addr = 2000;
+static const via_int test_addr = 256;
 
 static void test_builtin(struct via_vm* vm) {
     builtin_called = true;

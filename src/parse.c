@@ -250,7 +250,7 @@ const struct via_value* via_parse_string(
         return via_parse_ctx_make_unmatched(vm, context);
     }
 
-    char* buffer = via_malloc(len);
+    char* buffer = via_malloc(len + 1);
     c += via_copy_string(c, buffer) + 2;
     struct via_value* val = via_make_value(vm);
     val->type = VIA_V_STRING;
@@ -282,6 +282,7 @@ const struct via_value* via_parse_symbol(
     buffer[c - start] = '\0';
 
     const struct via_value* symbol = via_sym(vm, buffer);
+    via_free(buffer);
 
     return via_parse_ctx_program_add(vm, context, c, symbol);
 }

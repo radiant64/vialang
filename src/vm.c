@@ -101,7 +101,7 @@ struct via_assembly_result via_add_core_routines(struct via_vm* vm) {
 struct via_vm* via_create_vm() {
     struct via_vm* vm = via_calloc(1, sizeof(struct via_vm));
     if (vm) {
-        vm->heap = via_calloc(sizeof(struct via_value*), DEFAULT_HEAPSIZE);
+        vm->heap = via_calloc(DEFAULT_HEAPSIZE, sizeof(struct via_value*));
         if (!vm->heap) {
             goto cleanup_vm;
         }
@@ -249,7 +249,7 @@ void via_free_vm(struct via_vm* vm) {
 
     via_free(vm->program);
 
-    for (via_int i = 0; i < vm->heap_top; ++i) {
+    for (via_int i = 0; i < vm->heap_cap; ++i) {
         if (vm->heap[i]) {
             via_delete_value((struct via_value*) vm->heap[i]);
         }
@@ -272,6 +272,11 @@ struct via_value* via_make_value(struct via_vm* vm) {
         if (!new_heap) {
             return NULL;
         }
+        memset(
+            &new_heap[vm->heap_cap],
+            0,
+            sizeof(struct via_value*) * vm->heap_cap
+        );
         vm->heap = new_heap;
         vm->heap_cap *= 2;
     }
@@ -279,7 +284,7 @@ struct via_value* via_make_value(struct via_vm* vm) {
     if (i > vm->heap_top) {
         vm->heap_top = i;
     }
-    struct via_value* val = via_calloc(sizeof(struct via_value), 1);
+    struct via_value* val = via_calloc(1, sizeof(struct via_value));
     vm->heap[i] = val;
     vm->heap_free = i + 1;
     val->type = VIA_V_NIL;
