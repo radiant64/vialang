@@ -305,6 +305,28 @@ namespace via {
         }
     };
 
+    template<typename T1, typename T2>
+    struct TypeMapper<std::pair<T1, T2>> {
+        using ValueType = Pair;
+        static constexpr via_type type = VIA_V_PAIR;
+        static constexpr auto construct = via_make_pair;
+
+        static std::pair<T1, T2> decode(Vm& vm, Value source)
+        {
+            return {
+                via::decode<T1>(vm, source->v_car),
+                via::decode<T2>(vm, source->v_cdr)
+            };
+        }
+
+        static Value encode(Vm& vm, const std::pair<T1, T2>& source)
+        {
+            return Pair(vm, std::pair(
+                        via::encode<T1>(vm, source.first),
+                        via::encode<T2>(vm, source.second)));
+        }
+    };
+
     template<typename Type>
     struct TypeMapper<std::vector<Type>> {
         using ValueType = Pair;
