@@ -25,3 +25,7 @@ install(
 add_subdirectory(src)
 add_subdirectory(tests)
 
+if(NOT DISABLE_CPP)
+    add_subdirectory(via-cpp)
+endif()
+
