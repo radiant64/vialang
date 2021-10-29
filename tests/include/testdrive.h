@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 
-#define TD_VERSION 1.1.0
+#define TD_VERSION 1.1.1
 
 #ifndef TD_MAX_SECTIONS
 #define TD_MAX_SECTIONS 128
@@ -46,7 +46,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define TD_ALLOC_SECTIONS(CONTEXT)\
     if (!CONTEXT->sections) {\
-        CONTEXT->sections = malloc(\
+        CONTEXT->sections = calloc(\
+            1,\
             sizeof(struct td_test_context) * TD_MAX_SECTIONS\
         );\
     }
