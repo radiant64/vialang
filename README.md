@@ -54,6 +54,10 @@ Scheme-inspired language with an embeddable interpreter. Work in progress!
 - CMake 3.12 or later.
 - A build toolchain.
 
+Additionally, in order to build the [via-cpp](via-cpp/) wrapper, a C++ compiler
+supporting the C++17 standard is required (again for example GCC, Clang or
+Visual C++).
+
 ### CMake
 
 A project can be generated using CMake. Support for in-source builds explicitly
@@ -79,6 +83,15 @@ Building everything and running the included tests, using
 ```
 make
 make test
+```
+
+#### Configuration Flags
+
+To disable building [via-cpp](via-cpp/), the CMake variable `DISABLE_CPP` can be
+set:
+
+```
+cmake .. -DDISABLE_CPP=1
 ```
 
 ## Status
