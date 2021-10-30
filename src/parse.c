@@ -142,7 +142,7 @@ const struct via_value* via_parse_int(
 ) {
     const char* c = via_parse_ctx_cursor(context);
     char* end;
-    via_int value = strtol(c, &end, 10);
+    via_int value = strtol(c, &end, 0);
     if (c == end || !terminates_value(*end)) {
         return via_parse_ctx_make_unmatched(vm, context);
     }
