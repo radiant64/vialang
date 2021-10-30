@@ -123,7 +123,7 @@ namespace via {
         }
 
         void registerForm(const std::string& name, const std::string& label,
-                std::function<void(Vm&, Value&&)> func)
+                std::function<void(const Value&)> func)
         {
             contexts.emplace_back(new Bound(*this,
                         std::make_any<decltype(func)>(func)));
@@ -133,7 +133,7 @@ namespace via {
                     [](void* data) {
                         auto& [self, anyFunc] = *reinterpret_cast<Bound*>(data);
                         auto f = std::any_cast<decltype(func)>(anyFunc);
-                        f(self, via_reg_ctxt(self));
+                        f(via_reg_ctxt(self));
                     }, contexts.back().get());
         }
 
@@ -378,6 +378,48 @@ namespace via {
         {
             auto vmTuple = std::tuple_cat(std::tuple<Vm&>(vm), source);
             return std::make_from_tuple<List>(vmTuple);
+        }
+    };
+}
+
+namespace std {
+    template <>
+    struct hash<via::Value> {
+        std::size_t operator()(const via::Value& v) const noexcept
+        {
+            return std::hash<const via_value*>()(v);
+        }
+    };
+
+    template <>
+    struct hash<via::Symbol> {
+        std::size_t operator()(const via::Symbol& s) const noexcept
+        {
+            return std::hash<via::Value>()(s);
+        }
+    };
+
+    template <typename T>
+    struct hash<via::NativeValue<T>> {
+        std::size_t operator()(const via::NativeValue<T>& v) const noexcept
+        {
+            return std::hash<via::Value>()(v);
+        }
+    };
+
+    template <>
+    struct hash<via::Pair> {
+        std::size_t operator()(const via::Pair& p) const noexcept
+        {
+            return std::hash<via::Value>()(p);
+        }
+    };
+
+    template <>
+    struct hash<via::List> {
+        std::size_t operator()(const via::List& l) const noexcept
+        {
+            return std::hash<via::Value>()(l);
         }
     };
 }
