@@ -117,9 +117,20 @@ const struct via_value* via_parse_whitespace(
         while (*c && *c != '\r' && *c != '\n') {
             c++;
         }
-        // Repeat until all consecutive comments and whitespace have been
-        // parsed.
-        return via_parse_whitespace(vm, context);
+        if (*c) {
+            // Repeat until all consecutive comments and whitespace have been
+            // parsed.
+            return via_parse_whitespace(
+                vm,
+                via_create_parse_ctx(
+                    vm,
+                    c,
+                    via_parse_ctx_program(context),
+                    via_parse_ctx_parent(context),
+                    true
+                )
+            );
+        }
     }
 
     return via_create_parse_ctx(
