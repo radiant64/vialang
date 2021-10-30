@@ -128,7 +128,7 @@ namespace via {
             contexts.emplace_back(new Bound(*this,
                         std::make_any<decltype(func)>(func)));
 
-            via_register_proc_context(
+            via_register_form_context(
                     vm.get(), name.c_str(), label.c_str(), NULL,
                     [](void* data) {
                         auto& [self, anyFunc] = *reinterpret_cast<Bound*>(data);
