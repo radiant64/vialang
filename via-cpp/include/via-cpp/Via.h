@@ -191,13 +191,13 @@ namespace via {
         Value car() const { return value->v_car; }
         Value cdr() const { return value->v_cdr; }
         
-        Value car(Value vCar)
+        const Value& car(const Value& vCar)
         {
             const_cast<via_value*>(value)->v_car = vCar;
             return vCar;
         }
 
-        Value cdr(Value vCdr)
+        const Value& cdr(const Value& vCdr)
         {
             const_cast<via_value*>(value)->v_cdr = vCdr;
             return vCdr;
