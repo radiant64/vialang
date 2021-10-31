@@ -15,4 +15,7 @@
 #define ALLOC_FAIL "Host memory allocation failed"
 #define READ_ERROR "Read error"
 #define EXC_TYPE_ERROR "Value is not an exception"
+#define INT_REQUIRED "Integer argument required"
+#define OUT_OF_RANGE "Argument out of range"
+#define CANT_CONVERT "Unable to convert argument type"
 

@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define OP(INTOP, FLOATOP)\
@@ -308,15 +309,6 @@ void via_p_neq(struct via_vm* vm) {
     COMPARISON(!=)
 }
 
-void via_p_nilp(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (!args || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    vm->ret = via_make_bool(vm, via_pop_arg(vm) == NULL);
-}
-
 void via_p_context(struct via_vm* vm) {
     if (via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, NO_ARGS));
@@ -611,6 +603,235 @@ void via_p_garbage_collect(struct via_vm* vm) {
     via_garbage_collect(vm);
 }
 
+void via_p_byte(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* num = via_pop_arg(vm);
+
+    if (num->type != VIA_V_INT) {
+        via_throw(vm, via_except_invalid_type(vm, INT_REQUIRED));
+        return;
+    }
+
+    if (num->v_int < -128 || num->v_int > 255) {
+        via_throw(vm, via_except_runtime_error(vm, OUT_OF_RANGE));
+        return;
+    }
+
+    vm->ret = via_make_int(vm, num->v_int & 0xff);
+}
+
+void via_p_int(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* num = via_pop_arg(vm);
+
+    switch (num->type) {
+    case VIA_V_INT:
+        vm->ret = num;
+        break;
+    case VIA_V_FLOAT:
+        vm->ret = via_make_int(vm, (via_int) num->v_float);
+        break;
+    case VIA_V_BOOL:
+        vm->ret = via_make_int(vm, num->v_bool ? 1 : 0);
+        break;
+    case VIA_V_STRING:
+    case VIA_V_STRINGVIEW:
+        // TODO: Handle errors.
+        vm->ret = via_make_int(vm, strtol(num->v_string, NULL, 0));
+        break;
+    default:
+        via_throw(vm, via_except_invalid_type(vm, CANT_CONVERT));
+    }
+}
+
+void via_p_float(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* num = via_pop_arg(vm);
+
+    switch (num->type) {
+    case VIA_V_INT:
+        vm->ret = via_make_float(vm, (via_float) num->v_int);
+        break;
+    case VIA_V_FLOAT:
+        vm->ret = num;
+        break;
+    case VIA_V_BOOL:
+        vm->ret = via_make_float(vm, num->v_bool ? 1.0 : 0.0);
+        break;
+    case VIA_V_STRING:
+    case VIA_V_STRINGVIEW:
+        // TODO: Handle errors.
+        vm->ret = via_make_float(vm, strtod(num->v_string, NULL));
+        break;
+    default:
+        via_throw(vm, via_except_invalid_type(vm, CANT_CONVERT));
+    }
+}
+
+void via_p_string(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    vm->ret = via_to_string(vm, via_pop_arg(vm));
+}
+
+void via_p_bytep(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(
+        vm,
+        arg->type == VIA_V_INT && arg->v_int >= -128 && arg->v_int < 256
+    );
+}
+
+void via_p_nilp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg == NULL);
+}
+
+void via_p_intp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_INT);
+}
+
+void via_p_floatp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_FLOAT);
+}
+
+void via_p_boolp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_BOOL);
+}
+
+void via_p_stringp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_STRING);
+}
+
+void via_p_stringviewp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_STRINGVIEW);
+}
+
+void via_p_pairp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_PAIR);
+}
+
+void via_p_arrayp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_ARRAY);
+}
+
+void via_p_procp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_PROC);
+}
+
+void via_p_formp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_FORM);
+}
+
+void via_p_builtinp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_BUILTIN);
+}
+
+void via_p_framep(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_FRAME);
+}
+
+void via_p_symbolp(struct via_vm* vm) {
+    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr != NULL) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* arg = via_pop_arg(vm);
+    vm->ret = via_make_bool(vm, arg->type == VIA_V_SYMBOL);
+}
+
 void via_add_core_forms(struct via_vm* vm) {
     via_register_native_form(vm, "begin", "begin-proc", NULL);
     via_register_native_form(vm, "if", "if-proc", NULL);
@@ -772,6 +993,101 @@ void via_add_core_procedures(struct via_vm* vm) {
         "gc-proc",
         NULL,
         (via_bindable) via_p_garbage_collect
+    );
+    via_register_proc(vm, "byte", "byte-proc", NULL, (via_bindable) via_p_byte);
+    via_register_proc(vm, "int", "int-proc", NULL, (via_bindable) via_p_int);
+    via_register_proc(
+        vm,
+        "float",
+        "float-proc",
+        NULL,
+        (via_bindable) via_p_float
+    );
+    via_register_proc(
+        vm,
+        "string",
+        "string-proc",
+        NULL,
+        (via_bindable) via_p_string
+    );
+    via_register_proc(
+        vm,
+        "byte?",
+        "bytep-proc",
+        NULL,
+        (via_bindable) via_p_bytep
+    );
+    via_register_proc(vm, "nil?", "nilp-proc", NULL, (via_bindable) via_p_nilp);
+    via_register_proc(vm, "int?", "intp-proc", NULL, (via_bindable) via_p_intp);
+    via_register_proc(
+        vm,
+        "bool?",
+        "boolp-proc",
+        NULL,
+        (via_bindable) via_p_boolp
+    );
+    via_register_proc(
+        vm,
+        "string?",
+        "stringp-proc",
+        NULL,
+        (via_bindable) via_p_stringp
+    );
+    via_register_proc(
+        vm,
+        "stringview?",
+        "stringviewp-proc",
+        NULL,
+        (via_bindable) via_p_stringviewp
+    );
+    via_register_proc(
+        vm,
+        "pair?",
+        "pairp-proc",
+        NULL,
+        (via_bindable) via_p_pairp
+    );
+    via_register_proc(
+        vm,
+        "array?",
+        "arrayp-proc",
+        NULL,
+        (via_bindable) via_p_arrayp
+    );
+    via_register_proc(
+        vm,
+        "proc?",
+        "procp-proc",
+        NULL,
+        (via_bindable) via_p_procp
+    );
+    via_register_proc(
+        vm,
+        "form?",
+        "formp-proc",
+        NULL,
+        (via_bindable) via_p_formp
+    );
+    via_register_proc(
+        vm,
+        "builtin?",
+        "builtinp-proc",
+        NULL,
+        (via_bindable) via_p_builtinp
+    );
+    via_register_proc(
+        vm,
+        "frame?",
+        "framep-proc",
+        NULL,
+        (via_bindable) via_p_framep
+    );
+    via_register_proc(
+        vm,
+        "symbol?",
+        "symbolp-proc",
+        NULL,
+        (via_bindable) via_p_symbolp
     );
 }
 

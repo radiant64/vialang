@@ -189,6 +189,29 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result->v_int == 0);
     END_SECTION
 
+    SECTION("Numeric type conversions")
+        SECTION("Integers")
+            const char* source = "(list (int 1.0) (int #t) (int \"0x01\"))";
+            result = via_parse(vm, source);
+
+            REQUIRE(result);
+
+            expr = via_parse_ctx_program(result);
+            via_set_expr(vm, expr->v_car);
+
+            result = via_run_eval(vm);
+
+            REQUIRE(result);
+            REQUIRE(result->type == VIA_V_PAIR);
+            REQUIRE(result->v_car->type == VIA_V_INT);
+            REQUIRE(result->v_car->v_int == 1);
+            REQUIRE(result->v_cdr->v_car->type == VIA_V_INT);
+            REQUIRE(result->v_cdr->v_car->v_int == 1);
+            REQUIRE(result->v_cdr->v_cdr->v_car->type == VIA_V_INT);
+            REQUIRE(result->v_cdr->v_cdr->v_car->v_int == 1);
+        END_SECTION
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 

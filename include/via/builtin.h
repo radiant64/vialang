@@ -80,6 +80,42 @@ void via_p_cos(struct via_vm* vm);
 
 void via_p_garbage_collect(struct via_vm* vm);
 
+void via_p_byte(struct via_vm* vm);
+
+void via_p_int(struct via_vm* vm);
+
+void via_p_float(struct via_vm* vm);
+
+void via_p_string(struct via_vm* vm);
+
+void via_p_bytep(struct via_vm* vm);
+
+void via_p_nilp(struct via_vm* vm);
+
+void via_p_intp(struct via_vm* vm);
+
+void via_p_floatp(struct via_vm* vm);
+
+void via_p_boolp(struct via_vm* vm);
+
+void via_p_stringp(struct via_vm* vm);
+
+void via_p_stringviewp(struct via_vm* vm);
+
+void via_p_pairp(struct via_vm* vm);
+
+void via_p_arrayp(struct via_vm* vm);
+
+void via_p_procp(struct via_vm* vm);
+
+void via_p_formp(struct via_vm* vm);
+
+void via_p_builtinp(struct via_vm* vm);
+
+void via_p_framep(struct via_vm* vm);
+
+void via_p_symbolp(struct via_vm* vm);
+
 void via_add_core_forms(struct via_vm* vm);
 
 void via_add_core_procedures(struct via_vm* vm);
