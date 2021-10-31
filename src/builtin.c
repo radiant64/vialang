@@ -460,6 +460,62 @@ void via_p_display(struct via_vm* vm) {
     fprintf(stdout, "\n");
 }
 
+void via_p_close_port(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    const struct via_value* port = via_pop_arg(vm);
+    if (port->type != VIA_V_PORT) {
+        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
+        return;
+    }
+
+    fclose(port->v_handle);
+    vm->ret = via_make_port(vm, port->v_flags, NULL);
+}
+
+void via_p_open_file_input(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    const struct via_value* name = via_pop_arg(vm);
+    if (name->type != VIA_V_STRING || name->type != VIA_V_STRINGVIEW) {
+        via_throw(vm, via_except_argument_error(vm, STRING_REQUIRED));
+        return;
+    }
+
+    FILE* handle = fopen(name->v_string, "rb");
+    if (!handle) {
+        via_throw(vm, via_except_io_error(vm, FILE_OPEN_FAILED));
+        return;
+    }
+    vm->ret = via_make_port(vm, VIA_PORT_INPUT, handle); 
+}
+
+void via_p_open_file_output(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    const struct via_value* name = via_pop_arg(vm);
+    if (name->type != VIA_V_STRING || name->type != VIA_V_STRINGVIEW) {
+        via_throw(vm, via_except_argument_error(vm, STRING_REQUIRED));
+        return;
+    }
+
+    FILE* handle = fopen(name->v_string, "wb");
+    if (!handle) {
+        via_throw(vm, via_except_io_error(vm, FILE_OPEN_FAILED));
+        return;
+    }
+    vm->ret = via_make_port(vm, VIA_PORT_OUTPUT, handle); 
+}
+
 void via_p_read(struct via_vm* vm) {
     if (via_reg_args(vm) != NULL) {
         via_throw(vm, via_except_argument_error(vm, NO_ARGS));

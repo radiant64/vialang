@@ -212,6 +212,24 @@ FIXTURE(test_programs, "Programs")
         END_SECTION
     END_SECTION
 
+    SECTION("'let' syntax form")
+        const char* source =
+        "(let ((x 5) (y 10))"
+        "  (* x y))";
+        result = via_parse(vm, source);
+
+        REQUIRE(result);
+
+        expr = via_parse_ctx_program(result);
+        via_set_expr(vm, expr->v_car);
+
+        result = via_run_eval(vm);
+
+        REQUIRE(result);
+        REQUIRE(result->type == VIA_V_INT);
+        REQUIRE(result->v_int == 50);
+    END_SECTION
+
     via_free_vm(vm);
 END_FIXTURE
 

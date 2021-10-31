@@ -18,4 +18,7 @@
 #define INT_REQUIRED "Integer argument required"
 #define OUT_OF_RANGE "Argument out of range"
 #define CANT_CONVERT "Unable to convert argument type"
+#define STRING_REQUIRED "String argument required"
+#define FILE_OPEN_FAILED "Failed to open file"
+#define PORT_REQUIRED "Port argument required"
 

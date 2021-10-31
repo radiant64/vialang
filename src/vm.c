@@ -231,6 +231,9 @@ static void via_delete_value(struct via_value* value) {
     case VIA_V_FRAME:
         via_free((struct via_value*) value->v_arr);
         break;
+    case VIA_V_PORT:
+        fclose(((struct via_value*) value)->v_handle);
+        break;
     }
 
     via_free(value);
@@ -396,6 +399,19 @@ const struct via_value* via_make_form(
         )
     );
     value->type = VIA_V_FORM;
+
+    return value;
+}
+
+const struct via_value* via_make_port(
+    struct via_vm* vm,
+    via_int flags,
+    FILE* handle
+) {
+    struct via_value* value = via_make_value(vm);
+    value->type = VIA_V_PORT;
+    value->v_flags = flags;
+    value->v_handle = handle;
 
     return value;
 }
@@ -744,6 +760,8 @@ static const struct via_value* via_to_string_impl(
     case VIA_V_BUILTIN:
         OUT_PRINTF("<builtin %" VIA_FMTIx  ">", value->v_int);
         return out;
+    case VIA_V_PORT:
+        OUT_PRINTF("<port>");
     case VIA_V_PAIR:
     default:
         if (via_list_contains(sequence, value)) {

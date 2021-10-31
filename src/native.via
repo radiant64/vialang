@@ -2,6 +2,17 @@
   (syntax-transform set-proc! (&proc-name &proc-formals &proc-body)
                     (quote (set! &proc-name (lambda &proc-formals &proc-body))))
 
+  (set-proc! map (map-proc map-list)
+             (if (nil? map-list)
+               ()
+               (cons (map-proc (car map-list)) (map map-proc (cdr map-list)))))
+
+  (syntax-transform let (&definitions &body)
+                    (cons 
+                      (list (quote lambda) (map car (quote &definitions))
+                            (quote &body))
+                      (map cadr (quote &definitions))))
+
   (syntax-transform for-each (&list &var &body)
                     (quote (begin
                              (set-proc! realize (&var) &body)

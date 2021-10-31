@@ -3,6 +3,8 @@
 #include <via/defs.h>
 #include <via/value.h>
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -98,6 +100,12 @@ const struct via_value* via_make_form(
     const struct via_value* formals,
     const struct via_value* body,
     const struct via_value* routine
+);
+
+const struct via_value* via_make_port(
+    struct via_vm* vm,
+    via_int flags,
+    FILE* handle
 );
 
 const struct via_value** via_make_array(struct via_vm* vm, size_t size);
