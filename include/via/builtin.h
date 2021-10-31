@@ -60,11 +60,13 @@ void via_p_display(struct via_vm* vm);
 
 void via_p_close_port(struct via_vm* vm);
 
+void via_p_current_input_port(struct via_vm* vm);
+
 void via_p_open_file_input(struct via_vm* vm);
 
 void via_p_open_file_output(struct via_vm* vm);
 
-void via_p_read(struct via_vm* vm);
+void via_p_read_datum(struct via_vm* vm);
 
 void via_p_str_concat(struct via_vm* vm);
 

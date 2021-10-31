@@ -23,8 +23,16 @@ via_bool via_parse_ctx_matched(const struct via_value* ctx) {
     return ctx->v_cdr->v_cdr->v_car->v_bool;
 }
 
+via_bool via_parse_ctx_expr_open(const struct via_value* ctx) {
+    return ctx->v_cdr->v_cdr->v_cdr->v_car->v_bool;
+}
+
+via_bool via_parse_success(const struct via_value* ctx) {
+    return via_parse_ctx_matched(ctx) && !via_parse_ctx_expr_open(ctx);
+}
+
 const struct via_value* via_parse_ctx_parent(const struct via_value* ctx) {
-    return ctx->v_cdr->v_cdr->v_cdr->v_car;
+    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_car;
 }
 
 const struct via_value* via_create_parse_ctx(
@@ -32,7 +40,8 @@ const struct via_value* via_create_parse_ctx(
     const char* cursor,
     const struct via_value* program,
     const struct via_value* parent,
-    via_bool matched
+    via_bool matched,
+    via_bool expr_open
 ) {
     return via_make_pair(
         vm,
@@ -45,8 +54,12 @@ const struct via_value* via_create_parse_ctx(
                 via_make_bool(vm, matched),
                 via_make_pair(
                     vm,
-                    parent,
-                    NULL
+                    via_make_bool(vm, expr_open),
+                    via_make_pair(
+                        vm,
+                        parent,
+                        NULL
+                    )
                 )
             )
         )
@@ -55,14 +68,16 @@ const struct via_value* via_create_parse_ctx(
 
 const struct via_value* via_parse_ctx_make_unmatched(
     struct via_vm* vm,
-    const struct via_value* ctx
+    const struct via_value* ctx,
+    via_bool expr_open
 ) {
     return via_create_parse_ctx(
         vm,
         via_parse_ctx_cursor(ctx),
         via_parse_ctx_program(ctx),
         via_parse_ctx_parent(ctx),
-        false
+        false,
+        expr_open
     );
 }
 
@@ -79,7 +94,8 @@ const struct via_value* via_parse_ctx_program_add(
             cursor,
             via_make_pair(vm, val, NULL),
             via_parse_ctx_parent(ctx),
-            true
+            true,
+            false
         );
     }
 
@@ -94,7 +110,8 @@ const struct via_value* via_parse_ctx_program_add(
         cursor,
         via_parse_ctx_program(ctx),
         via_parse_ctx_parent(ctx),
-        true
+        true,
+        false
     );
 }
 
@@ -127,6 +144,7 @@ const struct via_value* via_parse_whitespace(
                     c,
                     via_parse_ctx_program(context),
                     via_parse_ctx_parent(context),
+                    true,
                     true
                 )
             );
@@ -138,6 +156,7 @@ const struct via_value* via_parse_whitespace(
         c,
         via_parse_ctx_program(context),
         via_parse_ctx_parent(context),
+        true,
         true
     ); 
 }
@@ -155,7 +174,7 @@ const struct via_value* via_parse_int(
     char* end;
     via_int value = strtol(c, &end, 0);
     if (c == end || !terminates_value(*end)) {
-        return via_parse_ctx_make_unmatched(vm, context);
+        return via_parse_ctx_make_unmatched(vm, context, false);
     }
 
     return via_parse_ctx_program_add(vm, context, end, via_make_int(vm, value));
@@ -169,7 +188,7 @@ const struct via_value* via_parse_float(
     char* end;
     via_float value = strtod(c, &end);
     if (c == end || !terminates_value(*end)) {
-        return via_parse_ctx_make_unmatched(vm, context);
+        return via_parse_ctx_make_unmatched(vm, context, false);
     }
 
     return via_parse_ctx_program_add(
@@ -193,12 +212,12 @@ const struct via_value* via_parse_bool(
             via_make_bool(vm, c[1] == 't')
         );
     }
-    return via_parse_ctx_make_unmatched(vm, context);
+    return via_parse_ctx_make_unmatched(vm, context, false);
 }
 
 static via_int via_copy_string(const char* c, char* dest) {
     if (*(c++) != '"') {
-        return -1;
+        return -2;
     }
 
     const char* start = c;
@@ -227,8 +246,11 @@ static via_int via_copy_string(const char* c, char* dest) {
             }
             escaped = false;
         } else {
-            if (*c == '\0' || *c == '\n' || *c == '\r') {
+            if (*c == '\0') {
                 return -1;
+            }
+            if (*c == '\n' || *c == '\r') {
+                return -2;
             }
             if (*c == '\\') {
                 escaped = true;
@@ -258,7 +280,10 @@ const struct via_value* via_parse_string(
     const char* c = via_parse_ctx_cursor(context);
     via_int len = via_copy_string(c, NULL);
     if (len < 0) {
-        return via_parse_ctx_make_unmatched(vm, context);
+        // A length of -1 indicates end of program with an open string, so
+        // indicate the expression is still open (to allow streaming to
+        // continue.
+        return via_parse_ctx_make_unmatched(vm, context, len == -1);
     }
 
     char* buffer = via_malloc(len + 1);
@@ -280,12 +305,12 @@ const struct via_value* via_parse_symbol(
         terminates_value(*c) || *c == '"' || *c == '\'' || *c == '#'
             || (*c >= '0' && *c <= '9') || *c == '('
     ) {
-        return via_parse_ctx_make_unmatched(vm, context);
+        return via_parse_ctx_make_unmatched(vm, context, false);
     }
 
     for (c += 1; !terminates_value(*c); ++c) {
         if (*c == '"' || *c == '\'' || *c == '#' || *c == '(') {
-            return via_parse_ctx_make_unmatched(vm, context);
+            return via_parse_ctx_make_unmatched(vm, context, false);
         }
     }
     char* buffer = via_malloc(c - start + 1);
@@ -323,7 +348,11 @@ const struct via_value* via_parse_value(
         }
     }
 
-    return via_parse_ctx_make_unmatched(vm, context);
+    return via_parse_ctx_make_unmatched(
+        vm,
+        context,
+        via_parse_ctx_expr_open(context)
+    );
 }
 
 const struct via_value* via_parse_oparen(
@@ -332,7 +361,7 @@ const struct via_value* via_parse_oparen(
 ) {
     const char* c = via_parse_ctx_cursor(context);
     if (*c != '(') {
-        return via_parse_ctx_make_unmatched(vm, context);
+        return via_parse_ctx_make_unmatched(vm, context, false);
     }
 
     return via_create_parse_ctx(
@@ -344,6 +373,7 @@ const struct via_value* via_parse_oparen(
             via_parse_ctx_program(context),
             via_parse_ctx_parent(context)
         ),
+        true,
         true
     );
 }
@@ -354,7 +384,7 @@ const struct via_value* via_parse_cparen(
 ) {
     const char* c = via_parse_ctx_cursor(context);
     if (*c != ')') {
-        return via_parse_ctx_make_unmatched(vm, context);
+        return via_parse_ctx_make_unmatched(vm, context, true);
     }
         
     const struct via_value* parent = via_create_parse_ctx(
@@ -362,7 +392,8 @@ const struct via_value* via_parse_cparen(
         c + 1,
         via_parse_ctx_parent(context)->v_car,
         via_parse_ctx_parent(context)->v_cdr,
-        true
+        true,
+        false
     );
     
     return via_parse_ctx_program_add(
@@ -404,9 +435,13 @@ const struct via_value* via_parse_expr(
 ) {
     context = via_parse_sexpr(vm, via_parse_whitespace(vm, context));
     if (!via_parse_ctx_matched(context)) {
-        return via_parse_ctx_make_unmatched(vm, context);
+        return via_parse_ctx_make_unmatched(
+            vm,
+            context,
+            via_parse_ctx_expr_open(context)
+        );
     }
-    return via_parse_whitespace(vm, context);
+    return context;
 }
 
 const struct via_value* via_parse(struct via_vm* vm, const char* source) {
@@ -415,6 +450,7 @@ const struct via_value* via_parse(struct via_vm* vm, const char* source) {
         source,
         NULL,
         NULL,
+        true,
         true
     );
 

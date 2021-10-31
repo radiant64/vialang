@@ -21,4 +21,6 @@
 #define STRING_REQUIRED "String argument required"
 #define FILE_OPEN_FAILED "Failed to open file"
 #define PORT_REQUIRED "Port argument required"
+#define UNTERMINATED_EXPRESSION "Unterminated expression"
+#define BOOL_REQUIRED "Bool argument required"
 

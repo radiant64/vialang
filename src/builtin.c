@@ -309,6 +309,19 @@ void via_p_neq(struct via_vm* vm) {
     COMPARISON(!=)
 }
 
+void via_p_not(struct via_vm* vm) {
+    const struct via_value* arg = via_pop_arg(vm);
+    if (!arg || via_reg_args(vm)) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    if (arg->type != VIA_V_BOOL) {
+        via_throw(vm, via_except_invalid_type(vm, BOOL_REQUIRED));
+        return;
+    }
+    vm->ret = via_make_bool(vm, !arg->v_bool);
+}
+
 void via_p_context(struct via_vm* vm) {
     if (via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, NO_ARGS));
@@ -476,6 +489,14 @@ void via_p_close_port(struct via_vm* vm) {
     vm->ret = via_make_port(vm, port->v_flags, NULL);
 }
 
+void via_p_current_input_port(struct via_vm* vm) {
+    if (via_reg_args(vm) != NULL) {
+        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
+        return;
+    }
+    vm->ret = via_make_port(vm, VIA_PORT_INPUT, stdin);
+}
+
 void via_p_open_file_input(struct via_vm* vm) {
     const struct via_value* args = via_reg_args(vm);
     if (args == NULL || args->v_cdr) {
@@ -516,46 +537,44 @@ void via_p_open_file_output(struct via_vm* vm) {
     vm->ret = via_make_port(vm, VIA_PORT_OUTPUT, handle); 
 }
 
-void via_p_read(struct via_vm* vm) {
-    if (via_reg_args(vm) != NULL) {
-        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
+void via_p_read_datum(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    char buffer[128];
+    const struct via_value* port = via_pop_arg(vm);
+    if (port->type != VIA_V_PORT) {
+        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
+        return;
+    }
+
+    char buffer[256];
     via_int open_parens = 0;
     const struct via_value* out = via_make_string(vm, "");
+    const struct via_value* result;
     do {
-        char* line = fgets(buffer, 128, stdin);
-        if (feof(stdin)) {
-            via_throw(vm, via_except_end_of_file(vm, ""));
-            return;
-        }
-        if (!line) {
+        const char* line = fgets(buffer, 256, port->v_handle);
+        if (!line && !feof(port->v_handle)) {
             via_throw(vm, via_except_io_error(vm, READ_ERROR));
             return;
-        }
-        const char* cursor = line;
-        while (*cursor) {
-            switch (*cursor) {
-            case '(':
-                open_parens++;
-                break;
-            case ')':
-                open_parens--;
-                break;
-            }
-            cursor++;
         }
         vm->regs = (struct via_value*) via_make_frame(vm);
         via_set_args(vm, NULL);
         via_push_arg(vm, out);
-        via_push_arg(vm, via_make_string(vm, line));
+        via_push_arg(vm, via_make_string(vm, buffer));
         via_p_str_concat(vm);
         vm->regs = (struct via_value*) via_reg_parn(vm);
         out = vm->ret;
-    } while (open_parens > 0);
 
-    vm->ret = via_parse_ctx_program(via_parse(vm, out->v_string))->v_car;
+        result = via_parse(vm, out->v_string);
+        if (via_parse_ctx_expr_open(result) && feof(port->v_handle)) {
+            via_throw(vm, via_except_syntax_error(vm, UNTERMINATED_EXPRESSION));
+            return;
+        }
+    } while (via_parse_ctx_expr_open(result) && !feof(port->v_handle));
+    
+    vm->ret = via_parse_ctx_program(result)->v_car;
 }
 
 void via_p_str_concat(struct via_vm* vm) {
@@ -960,7 +979,7 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, ">=", "gte-proc", NULL, (via_bindable) via_p_gte);
     via_register_proc(vm, "<=", "lte-proc", NULL, (via_bindable) via_p_lte);
     via_register_proc(vm, "<>", "neq-proc", NULL, (via_bindable) via_p_neq);
-    via_register_proc(vm, "nil?", "nilp-proc", NULL, (via_bindable) via_p_nilp);
+    via_register_proc(vm, "not", "not-proc", NULL, (via_bindable) via_p_not);
     via_register_proc(
         vm,
         "context",
@@ -1016,10 +1035,17 @@ void via_add_core_procedures(struct via_vm* vm) {
     );
     via_register_proc(
         vm,
-        "read",
-        "read-proc",
+        "current-input-port",
+        "current-input-port-proc",
         NULL,
-        (via_bindable) via_p_read
+        (via_bindable) via_p_current_input_port
+    );
+    via_register_proc(
+        vm,
+        "read-datum",
+        "read-datum-proc",
+        NULL,
+        (via_bindable) via_p_read_datum
     );
     via_register_proc(
         vm,

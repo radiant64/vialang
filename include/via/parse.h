@@ -15,6 +15,10 @@ const struct via_value* via_parse_ctx_program(const struct via_value* ctx);
 
 via_bool via_parse_ctx_matched(const struct via_value* ctx);
 
+via_bool via_parse_ctx_expr_open(const struct via_value* ctx);
+
+via_bool via_parse_success(const struct via_value* ctx);
+
 const struct via_value* via_parse(struct via_vm* vm, const char* source);
 
 #ifdef __cplusplus

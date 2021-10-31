@@ -160,7 +160,7 @@ struct via_vm* via_create_vm() {
         via_add_core_procedures(vm);
 
         const struct via_value* native = via_parse(vm, native_via);
-        if (!via_parse_ctx_matched(native)) {
+        if (!via_parse_success(native)) {
             const char* cursor = via_parse_ctx_cursor(native);
             if (!*cursor) {
                 fprintf(

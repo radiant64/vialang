@@ -22,40 +22,43 @@
                                            (iterate (car tail) (cdr tail)))))))
                         (iterate (car &list) (cdr &list)))))
 
-  (set-proc! with-file-proc (current-file-proc logic)
+  (set-proc! read () (read-datum (current-input-port)))
+
+  (set-proc! with-port-proc (current-port-proc logic)
              (catch
                (begin
                  (logic)
-                 (close-port (current-file-proc)))
+                 (close-port (current-port-proc)))
                (begin
-                 (close-port (current-file-proc))
+                 (close-port (current-port-proc))
                  (throw (exception)))))
 
   (set-proc! with-input-file (file-name logic)
              (let
-               ((current-input-file (lambda () (open-file-input file-name))))
-               (with-file-proc current-input-file logic)))
+               ((current-input-port (lambda () (open-file-input file-name))))
+               (with-port-proc current-input-port logic)))
 
   (set-proc! with-output-file (file-name logic)
              (let
-               ((current-output-file (lambda () (open-file-output file-name))))
-               (with-file-proc current-output-file logic)))
+               ((current-output-port (lambda () (open-file-output file-name))))
+               (with-port-proc current-output-port logic)))
 
   (set-proc! repl ()
              (let (
                (read-eval-print-loop (lambda ()
                                        (begin
                                          (print ">>> ")
-                                         (display (eval (read)))
-                                         (read-eval-print-loop)))))
+                                         (set! expr (read))
+                                         (if (not (nil? expr)) 
+                                           (begin
+                                             (display (eval expr))
+                                             (read-eval-print-loop))
+                                           ())))))
                (catch (read-eval-print-loop)
-                      (if (= (quote exc-end-of-file)
-                             (exception-type (exception)))
-                        (print "\nEOF, terminating REPL\n")
-                        (begin
-                          (display (cons (exception-type (exception))
-                                         (exception-message (exception))))
-                          (repl))))))
+                      (begin
+                        (display (cons (exception-type (exception))
+                                       (exception-message (exception))))
+                        (repl)))))
 
   (set-proc! map (map-proc map-list)
              (if (nil? map-list)
