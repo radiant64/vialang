@@ -8,24 +8,46 @@
                             (quote &body))
                       (map cadr (quote &definitions))))
 
+  (syntax-transform include-file (&file-name)
+                    (with-input-file &file-name (read)))
+
   (syntax-transform for-each (&list &var &body)
-                    (quote (begin
-                             (set-proc! realize (&var) &body)
-                             (set-proc! iterate (head tail)
-                                        (if (nil? tail)
-                                          (realize head)
-                                          (begin (realize head)
-                                                 (iterate (car tail)
-                                                          (cdr tail)))))
-                             (iterate (car &list) (cdr &list)))))
+                    (quote
+                      (let ((realize (lambda (&var) &body))
+                            (iterate (lambda (head tail)
+                                       (if (nil? tail)
+                                         (realize head)
+                                         (begin
+                                           (realize head)
+                                           (iterate (car tail) (cdr tail)))))))
+                        (iterate (car &list) (cdr &list)))))
+
+  (set-proc! with-file-proc (current-file-proc logic)
+             (catch
+               (begin
+                 (logic)
+                 (close-port (current-file-proc)))
+               (begin
+                 (close-port (current-file-proc))
+                 (throw (exception)))))
+
+  (set-proc! with-input-file (file-name logic)
+             (let
+               ((current-input-file (lambda () (open-file-input file-name))))
+               (with-file-proc current-input-file logic)))
+
+  (set-proc! with-output-file (file-name logic)
+             (let
+               ((current-output-file (lambda () (open-file-output file-name))))
+               (with-file-proc current-output-file logic)))
 
   (set-proc! repl ()
-             (begin
-               (set-proc! read-eval-print-loop ()
-                          (begin
-                            (print ">>> ")
-                            (display (eval (read)))
-                            (read-eval-print-loop)))
+             (let (
+               (read-eval-print-loop (lambda ()
+                                       (begin
+                                         (print ">>> ")
+                                         (display (eval (read)))
+                                         (read-eval-print-loop)))))
                (catch (read-eval-print-loop)
                       (if (= (quote exc-end-of-file)
                              (exception-type (exception)))
