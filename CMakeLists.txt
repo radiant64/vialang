@@ -29,3 +29,10 @@ if(NOT DISABLE_CPP)
     add_subdirectory(via-cpp)
 endif()
 
+add_executable(standalone src/standalone.c)
+target_link_libraries(standalone PRIVATE via)
+target_compile_definitions(standalone PRIVATE VIA_VERSION="${PROJECT_VERSION}")
+set_target_properties(standalone PROPERTIES C_STANDARD 11 OUTPUT_NAME via)
+
+install(TARGETS standalone)
+

@@ -23,4 +23,5 @@
 #define PORT_REQUIRED "Port argument required"
 #define UNTERMINATED_EXPRESSION "Unterminated expression"
 #define BOOL_REQUIRED "Bool argument required"
+#define PARSE_ERROR "Failed to parse expression"
 

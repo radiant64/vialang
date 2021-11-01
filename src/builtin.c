@@ -6,6 +6,7 @@
 #include <via/assembler.h>
 #include <via/exceptions.h>
 #include <via/parse.h>
+#include <via/port.h>
 #include <via/vm.h>
 
 #include <assert.h>
@@ -424,53 +425,60 @@ void via_p_list(struct via_vm* vm) {
     }
 }
 
-void via_p_print(struct via_vm* vm) {
-    if (via_reg_args(vm) == NULL || via_reg_args(vm)->v_cdr) {
+void via_p_reverse_list(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    const struct via_value* value = via_pop_arg(vm);
-    switch (value->type) {
-    case VIA_V_UNDEFINED:
-        fprintf(stdout, "<UNDEFINED>");
-        break;
-    case VIA_V_NIL:
-        fprintf(stdout, "()");
-        break;
-    case VIA_V_INT:
-        fprintf(stdout, "%" VIA_FMTId, value->v_int);
-        break;
-    case VIA_V_FLOAT:
-        fprintf(stdout, "%f", value->v_float);
-        break;
-    case VIA_V_BOOL:
-        fprintf(stdout, "%s", value->v_bool ? "#t" : "#f");
-        break;
-    case VIA_V_STRING:
-    case VIA_V_STRINGVIEW:
-    case VIA_V_SYMBOL:
-        fprintf(stdout, "%s", value->v_string);
-        break;
-    default:
-        fprintf(stdout, "<COMPOUND>");
-        break;
-    }
+    vm->ret = via_reverse_list(vm, via_pop_arg(vm));
 }
 
-void via_p_display(struct via_vm* vm) {
-    if (via_reg_args(vm) == NULL) {
+void via_p_current_input_port(struct via_vm* vm) {
+    if (via_reg_args(vm) != NULL) {
+        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
+        return;
+    }
+    vm->acc = via_sym(vm, "via-int-current-input-port");
+    via_env_lookup(vm);
+}
+
+void via_p_current_output_port(struct via_vm* vm) {
+    if (via_reg_args(vm) != NULL) {
+        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
+        return;
+    }
+    vm->acc = via_sym(vm, "via-int-current-output-port");
+    via_env_lookup(vm);
+}
+
+static void via_p_open_file_port(struct via_vm* vm, enum via_port_flags flags) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-    const struct via_value* list = NULL;
-    for (; via_reg_args(vm); list = via_make_pair(vm, via_pop_arg(vm), list)) {
+    const struct via_value* name = via_pop_arg(vm);
+    if (name->type != VIA_V_STRING && name->type != VIA_V_STRINGVIEW) {
+        via_throw(vm, via_except_argument_error(vm, STRING_REQUIRED));
+        return;
     }
 
-    while (list) {
-        fprintf(stdout, "%s", via_to_string(vm, list->v_car)->v_string);
-        list = list->v_cdr;
+    const struct via_port_handle* handle =
+        via_open_file_port(name->v_string, flags);
+    if (!handle) {
+        via_throw(vm, via_except_io_error(vm, FILE_OPEN_FAILED));
+        return;
     }
-    fprintf(stdout, "\n");
+    vm->ret = via_make_port(vm, handle); 
+}
+
+void via_p_open_file_input(struct via_vm* vm) {
+    via_p_open_file_port(vm, VIA_PORT_INPUT);
+}
+
+void via_p_open_file_output(struct via_vm* vm) {
+    via_p_open_file_port(vm, VIA_PORT_OUTPUT);
 }
 
 void via_p_close_port(struct via_vm* vm) {
@@ -485,59 +493,11 @@ void via_p_close_port(struct via_vm* vm) {
         return;
     }
 
-    fclose(port->v_handle);
-    vm->ret = via_make_port(vm, port->v_flags, NULL);
+    port->v_port->close((struct via_port_handle*) port->v_port);
+    vm->ret = port;
 }
 
-void via_p_current_input_port(struct via_vm* vm) {
-    if (via_reg_args(vm) != NULL) {
-        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
-        return;
-    }
-    vm->ret = via_make_port(vm, VIA_PORT_INPUT, stdin);
-}
-
-void via_p_open_file_input(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    const struct via_value* name = via_pop_arg(vm);
-    if (name->type != VIA_V_STRING || name->type != VIA_V_STRINGVIEW) {
-        via_throw(vm, via_except_argument_error(vm, STRING_REQUIRED));
-        return;
-    }
-
-    FILE* handle = fopen(name->v_string, "rb");
-    if (!handle) {
-        via_throw(vm, via_except_io_error(vm, FILE_OPEN_FAILED));
-        return;
-    }
-    vm->ret = via_make_port(vm, VIA_PORT_INPUT, handle); 
-}
-
-void via_p_open_file_output(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    const struct via_value* name = via_pop_arg(vm);
-    if (name->type != VIA_V_STRING || name->type != VIA_V_STRINGVIEW) {
-        via_throw(vm, via_except_argument_error(vm, STRING_REQUIRED));
-        return;
-    }
-
-    FILE* handle = fopen(name->v_string, "wb");
-    if (!handle) {
-        via_throw(vm, via_except_io_error(vm, FILE_OPEN_FAILED));
-        return;
-    }
-    vm->ret = via_make_port(vm, VIA_PORT_OUTPUT, handle); 
-}
-
-void via_p_read_datum(struct via_vm* vm) {
+void via_p_eofp(struct via_vm* vm) {
     const struct via_value* args = via_reg_args(vm);
     if (args == NULL || args->v_cdr) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
@@ -548,14 +508,31 @@ void via_p_read_datum(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
         return;
     }
+    
+    vm->ret = via_make_bool(vm, port->v_port->eof(port->v_port));
+}
+
+void via_p_read_datum(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+    const struct via_value* port_value = via_pop_arg(vm);
+    if (port_value->type != VIA_V_PORT) {
+        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
+        return;
+    }
+
+    const struct via_port_handle* port = port_value->v_port;
 
     char buffer[256];
     via_int open_parens = 0;
     const struct via_value* out = via_make_string(vm, "");
     const struct via_value* result;
     do {
-        const char* line = fgets(buffer, 256, port->v_handle);
-        if (!line && !feof(port->v_handle)) {
+        char* line = port->readline(port, buffer, 256);
+        if (!line && !port->eof(port)) {
             via_throw(vm, via_except_io_error(vm, READ_ERROR));
             return;
         }
@@ -567,14 +544,47 @@ void via_p_read_datum(struct via_vm* vm) {
         vm->regs = (struct via_value*) via_reg_parn(vm);
         out = vm->ret;
 
+        if (out->v_string[0] == '\0') {
+            // Empty datum; return nil.
+            vm->ret = NULL;
+            return;
+        }
         result = via_parse(vm, out->v_string);
-        if (via_parse_ctx_expr_open(result) && feof(port->v_handle)) {
+        if (via_parse_ctx_expr_open(result) && port->eof(port)) {
             via_throw(vm, via_except_syntax_error(vm, UNTERMINATED_EXPRESSION));
             return;
         }
-    } while (via_parse_ctx_expr_open(result) && !feof(port->v_handle));
+    } while (
+        !via_parse_ctx_program(result)
+            || (via_parse_ctx_expr_open(result) && !port->eof(port))
+    );
     
-    vm->ret = via_parse_ctx_program(result)->v_car;
+    if (via_parse_ctx_matched(result)) {
+        vm->ret = via_parse_ctx_program(result)->v_car;
+    } else {
+        via_throw(vm, via_except_syntax_error(vm, PARSE_ERROR));
+    }
+}
+
+void via_p_write_datum(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (args == NULL || args->v_cdr == NULL || args->v_cdr->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
+        return;
+    }
+    const struct via_value* datum = via_pop_arg(vm);
+
+    const struct via_value* port_value = via_pop_arg(vm);
+    if (port_value->type != VIA_V_PORT) {
+        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
+        return;
+    }
+    const struct via_port_handle* port = port_value->v_port;
+
+    const struct via_value* datum_string = via_to_string(vm, datum);
+
+    port->write(port, datum_string->v_string, strlen(datum_string->v_string));
+    vm->ret = NULL;
 }
 
 void via_p_str_concat(struct via_vm* vm) {
@@ -1021,17 +1031,10 @@ void via_add_core_procedures(struct via_vm* vm) {
     via_register_proc(vm, "list", "list-proc", NULL, (via_bindable) via_p_list);
     via_register_proc(
         vm,
-        "print",
-        "print-proc",
+        "reverse",
+        "reverse-proc",
         NULL,
-        (via_bindable) via_p_print
-    );
-    via_register_proc(
-        vm,
-        "display",
-        "display-proc",
-        NULL,
-        (via_bindable) via_p_display
+        (via_bindable) via_p_reverse_list
     );
     via_register_proc(
         vm,
@@ -1042,10 +1045,46 @@ void via_add_core_procedures(struct via_vm* vm) {
     );
     via_register_proc(
         vm,
+        "current-output-port",
+        "current-output-port-proc",
+        NULL,
+        (via_bindable) via_p_current_output_port
+    );
+    via_register_proc(
+        vm,
+        "open-file-input",
+        "open-file-input-proc",
+        NULL,
+        (via_bindable) via_p_open_file_input
+    );
+    via_register_proc(
+        vm,
+        "open-file-output",
+        "open-file-output-proc",
+        NULL,
+        (via_bindable) via_p_open_file_output
+    );
+    via_register_proc(
+        vm,
+        "close-port",
+        "close-port-proc",
+        NULL,
+        (via_bindable) via_p_close_port
+    );
+    via_register_proc(vm, "eof?", "eofp-proc", NULL, (via_bindable) via_p_eofp);
+    via_register_proc(
+        vm,
         "read-datum",
         "read-datum-proc",
         NULL,
         (via_bindable) via_p_read_datum
+    );
+    via_register_proc(
+        vm,
+        "write-datum",
+        "write-datum-proc",
+        NULL,
+        (via_bindable) via_p_write_datum
     );
     via_register_proc(
         vm,

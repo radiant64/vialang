@@ -1,0 +1,14 @@
+; Iterates over two lists of names and combines them into a list of full names,
+; and then prints them with some added flair.
+
+(let ((first-names (list "Guy" "Dennis" "Linus" "Gerald" "Peter"))
+      (last-names (list "Steele" "Ritchie" "Torvalds" "Sussman" "Norvig"))
+      (zip (lambda (first last)
+             (if (nil? first)
+                 ()
+                 (cons
+                   (join-strings (car first) " " (car last))
+                   (zip (cdr first) (cdr last)))))))
+  (map (lambda (name) (display name "!\n"))
+       (zip first-names last-names)))
+

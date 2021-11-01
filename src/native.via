@@ -9,7 +9,9 @@
                       (map cadr (quote &definitions))))
 
   (syntax-transform include-file (&file-name)
-                    (with-input-file &file-name (read)))
+                    (let
+                      ((file-port (open-file-input &file-name)))
+                      (read-datum file-port)))
 
   (syntax-transform for-each (&list &var &body)
                     (quote
@@ -24,40 +26,40 @@
 
   (set-proc! read () (read-datum (current-input-port)))
 
-  (set-proc! with-port-proc (current-port-proc logic)
-             (catch
-               (begin
-                 (logic)
-                 (close-port (current-port-proc)))
-               (begin
-                 (close-port (current-port-proc))
-                 (throw (exception)))))
-
-  (set-proc! with-input-file (file-name logic)
+  (set-proc! join-strings (strings)
              (let
-               ((current-input-port (lambda () (open-file-input file-name))))
-               (with-port-proc current-input-port logic)))
+               ((iterate (lambda (head-string tail-strings acc)
+                           (if (nil? tail-strings)
+                             (str-concat acc head-string)
+                             (iterate (car tail-strings)
+                                      (cdr tail-strings)
+                                      (str-concat acc head-string))))))
+               (iterate (car strings) (cdr strings) "")))
 
-  (set-proc! with-output-file (file-name logic)
-             (let
-               ((current-output-port (lambda () (open-file-output file-name))))
-               (with-port-proc current-output-port logic)))
+  (set-proc! display (data)
+             (if (pair? data)
+               (write-datum (current-output-port) 
+                            (join-strings (map string data)))
+               (write-datum (current-output-port) data)))
 
   (set-proc! repl ()
-             (let (
-               (read-eval-print-loop (lambda ()
-                                       (begin
-                                         (print ">>> ")
-                                         (set! expr (read))
-                                         (if (not (nil? expr)) 
-                                           (begin
-                                             (display (eval expr))
-                                             (read-eval-print-loop))
-                                           ())))))
+             (let
+               ((read-eval-print-loop
+                  (lambda ()
+                    (begin
+                      (display ">>> ")
+                      (let ((expr (read)))
+                        (if (or (eof? (current-input-port))
+                                (= expr (quote quit)))
+                          ()
+                          (begin
+                            (display "\n" (eval expr) "\n")
+                            (read-eval-print-loop))))))))
                (catch (read-eval-print-loop)
                       (begin
-                        (display (cons (exception-type (exception))
-                                       (exception-message (exception))))
+                        (display (exception-type (exception)) ": "
+                                 (exception-message (exception)) "\n")
+                        (display (backtrace (exception-frame (exception))) "\n")
                         (repl)))))
 
   (set-proc! map (map-proc map-list)

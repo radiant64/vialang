@@ -24,6 +24,7 @@ set(SOURCES
     builtin.c
     exceptions.c
     parse.c
+    port.c
     vm.c
 )
 if(SHARED_LIBRARY)
@@ -51,4 +52,5 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.h"
 )
+
 

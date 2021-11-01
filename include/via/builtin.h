@@ -36,6 +36,8 @@ void via_p_lte(struct via_vm* vm);
 
 void via_p_neq(struct via_vm* vm);
 
+void via_p_not(struct via_vm* vm);
+
 void via_p_context(struct via_vm* vm);
 
 void via_p_exception(struct via_vm* vm);
@@ -56,17 +58,21 @@ void via_p_list(struct via_vm* vm);
 
 void via_p_print(struct via_vm* vm);
 
-void via_p_display(struct via_vm* vm);
+void via_p_default_input_port(struct via_vm* vm);
 
-void via_p_close_port(struct via_vm* vm);
-
-void via_p_current_input_port(struct via_vm* vm);
+void via_p_default_output_port(struct via_vm* vm);
 
 void via_p_open_file_input(struct via_vm* vm);
 
 void via_p_open_file_output(struct via_vm* vm);
 
+void via_p_close_port(struct via_vm* vm);
+
+void via_p_eofp(struct via_vm* vm);
+
 void via_p_read_datum(struct via_vm* vm);
+
+void via_p_write_datum(struct via_vm* vm);
 
 void via_p_str_concat(struct via_vm* vm);
 

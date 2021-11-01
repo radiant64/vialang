@@ -7,6 +7,7 @@
 #include <via/builtin.h>
 #include <via/exceptions.h>
 #include <via/parse.h>
+#include <via/port.h>
 
 #include <builtin-native.h>
 #include <native-via.h>
@@ -159,6 +160,18 @@ struct via_vm* via_create_vm() {
         via_add_core_forms(vm);
         via_add_core_procedures(vm);
 
+        // Set up the default IO ports.
+        via_env_set(
+            vm,
+            via_sym(vm, "via-int-current-input-port"),
+            via_make_port(vm, via_create_default_port(stdin, VIA_PORT_INPUT))
+        );
+        via_env_set(
+            vm,
+            via_sym(vm, "via-int-current-output-port"),
+            via_make_port(vm, via_create_default_port(stdout, VIA_PORT_OUTPUT))
+        );
+
         const struct via_value* native = via_parse(vm, native_via);
         if (!via_parse_success(native)) {
             const char* cursor = via_parse_ctx_cursor(native);
@@ -232,7 +245,7 @@ static void via_delete_value(struct via_value* value) {
         via_free((struct via_value*) value->v_arr);
         break;
     case VIA_V_PORT:
-        fclose(((struct via_value*) value)->v_handle);
+        value->v_port->free_handle((struct via_port_handle*) value->v_port);
         break;
     }
 
@@ -405,13 +418,11 @@ const struct via_value* via_make_form(
 
 const struct via_value* via_make_port(
     struct via_vm* vm,
-    via_int flags,
-    FILE* handle
+    const struct via_port_handle* handle
 ) {
     struct via_value* value = via_make_value(vm);
     value->type = VIA_V_PORT;
-    value->v_flags = flags;
-    value->v_handle = handle;
+    value->v_port = handle;
 
     return value;
 }
@@ -751,7 +762,7 @@ static const struct via_value* via_to_string_impl(
         return via_make_stringview(vm, value->v_bool ? "#t" : "#f");
     case VIA_V_STRING:
     case VIA_V_STRINGVIEW:
-        OUT_PRINTF("\"%s\"", value->v_string);
+        OUT_PRINTF("%s", value->v_string);
         return out;
     case VIA_V_ARRAY:
         return via_make_stringview(vm, "<array>");
@@ -762,6 +773,7 @@ static const struct via_value* via_to_string_impl(
         return out;
     case VIA_V_PORT:
         OUT_PRINTF("<port>");
+        return out;
     case VIA_V_PAIR:
     default:
         if (via_list_contains(sequence, value)) {
@@ -830,6 +842,20 @@ const struct via_value* via_pop_arg(struct via_vm* vm) {
     return val; 
 }
 
+const struct via_value* via_reverse_list(
+    struct via_vm* vm,
+    const struct via_value* list
+) {
+    const struct via_value* new_list = NULL;
+
+    while (list) {
+        new_list = via_make_pair(vm, list->v_car, new_list);
+        list = list->v_cdr;
+    }
+
+    return new_list;
+}
+
 void via_apply(struct via_vm* vm) {
     // TODO: Improve address caching.
     static struct via_vm* cached_instance = NULL;
@@ -847,7 +873,11 @@ void via_apply(struct via_vm* vm) {
     via_set_env(vm, via_make_env(vm));
 
     while (formals) {
-        via_env_set(vm, formals->v_car, args->v_car);
+        if (!formals->v_cdr && args->v_cdr) {
+            via_env_set(vm, formals->v_car, via_reverse_list(vm, args));
+        } else {
+            via_env_set(vm, formals->v_car, args->v_car);
+        }
         args = args->v_cdr;
         formals = formals->v_cdr;
     }
@@ -969,9 +999,7 @@ void via_env_lookup(struct via_vm* vm) {
         env = env->v_car;
     } while (env);
 
-    struct via_value* result = via_make_value(vm);
-    result->type = VIA_V_UNDEFINED;
-    vm->ret = result;
+    via_throw(vm, via_except_undefined_value(vm, vm->acc->v_symbol));
 }
 
 void via_env_set(

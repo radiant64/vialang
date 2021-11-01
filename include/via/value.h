@@ -2,8 +2,6 @@
 
 #include <via/defs.h>
 
-#include <stdio.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,10 +54,7 @@ enum via_op {
     VIA_OP_POPARG
 };
 
-enum via_port_flags {
-    VIA_PORT_INPUT = 0x01,
-    VIA_PORT_OUTPUT = 0x02
-};
+struct via_port_handle;
 
 struct via_value {
     enum via_type type;
@@ -78,10 +73,7 @@ struct via_value {
             via_int v_size;
             const struct via_value** v_arr;
         };
-        struct {
-            via_int v_flags;
-            FILE* v_handle;
-        };
+        const struct via_port_handle* v_port;
     };
     uint8_t generation;
 };

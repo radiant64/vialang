@@ -28,21 +28,6 @@ FIXTURE(test_programs, "Programs")
         REQUIRE(result == via_sym(vm, "test-symbol"));
     END_SECTION
     
-    SECTION("REPL")
-        const char* source = "(repl)";
-        result = via_parse(vm, source);
-
-        REQUIRE(result);
-
-        expr = via_parse_ctx_program(result);
-        via_set_expr(vm, expr->v_car);
-
-        result = via_run_eval(vm);
-
-        REQUIRE(result);
-        REQUIRE(result->v_int == 12);
-    END_SECTION
-
     SECTION("Sequence")
         const char* source = "(begin (context) 12)";
         result = via_parse(vm, source);
