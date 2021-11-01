@@ -41,9 +41,7 @@ Scheme-inspired language with an embeddable interpreter. Work in progress!
 - JIT compiler.
 - Proper documentation.
 - Better packaging.
-  - Support for generating `pkg-config` and CMake packages.
   - Improved public API.
-  - Optional modern C++ API wrapper.
 
 ## Building
 
