@@ -1,6 +1,7 @@
 #include <testdrive.h>
 
 #include <via/exceptions.h>
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 static void test_add(struct via_vm* vm) {

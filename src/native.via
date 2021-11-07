@@ -2,69 +2,9 @@
   (syntax-transform set-proc! (&proc-name &proc-formals &proc-body)
                     (quote (set! &proc-name (lambda &proc-formals &proc-body))))
 
-  (syntax-transform let (&definitions &body)
-                    (cons 
-                      (list (quote lambda) (map car (quote &definitions))
-                            (quote &body))
-                      (map cadr (quote &definitions))))
-
-  (syntax-transform include-file (&file-name)
-                    (let
-                      ((file-port (open-file-input &file-name)))
-                      (read-datum file-port)))
-
-  (syntax-transform for-each (&list &var &body)
-                    (quote
-                      (let ((realize (lambda (&var) &body))
-                            (iterate (lambda (head tail)
-                                       (if (nil? tail)
-                                         (realize head)
-                                         (begin
-                                           (realize head)
-                                           (iterate (car tail) (cdr tail)))))))
-                        (iterate (car &list) (cdr &list)))))
-
-  (set-proc! read () (read-datum (current-input-port)))
-
-  (set-proc! join-strings (strings)
-             (let
-               ((iterate (lambda (head-string tail-strings acc)
-                           (if (nil? tail-strings)
-                             (str-concat acc head-string)
-                             (iterate (car tail-strings)
-                                      (cdr tail-strings)
-                                      (str-concat acc head-string))))))
-               (iterate (car strings) (cdr strings) "")))
-
-  (set-proc! display (data)
-             (if (pair? data)
-               (write-datum (current-output-port) 
-                            (join-strings (map string data)))
-               (write-datum (current-output-port) data)))
-
-  (set-proc! repl ()
-             (let
-               ((read-eval-print-loop
-                  (lambda ()
-                    (begin
-                      (display ">>> ")
-                      (let ((expr (read)))
-                        (if (or (eof? (current-input-port))
-                                (= expr (quote quit)))
-                          ()
-                          (begin
-                            (display "\n" (eval expr) "\n")
-                            (read-eval-print-loop))))))))
-               (catch (read-eval-print-loop)
-                      (begin
-                        (display (exception-type (exception)) ": "
-                                 (exception-message (exception)) "\n")
-                        (display (backtrace (exception-frame (exception))) "\n")
-                        (repl)))))
-
   (set-proc! map (map-proc map-list)
-             (if (nil? map-list)
-               ()
+             (if (nil? (cdr map-list))
+               (list (map-proc (car map-list)))
                (cons (map-proc (car map-list)) (map map-proc (cdr map-list)))))
 
   (set-proc! cadr (pair)
@@ -95,5 +35,140 @@
              (car (car pair)))
   
   (set-proc! cddr (pair)
-             (cdr (cdr pair))))
+             (cdr (cdr pair)))
+
+  (set-proc! make-lambda (parameters body)
+             (list (quote lambda) parameters body))
+
+  (set-proc! make-application (proc args)
+             (list (quote apply) (if (pair? args)
+                                   (cons proc args)
+                                   (list proc args))))
+
+  (syntax-transform let (&definitions &body)
+                      (cons (list (quote lambda)
+                                  (map car (quote &definitions))
+                                  (quote (begin &body)))
+                            (map cadr (quote &definitions))))
+
+  (syntax-transform include-file (&file-name)
+                    (let
+                      ((file-port (open-file-input &file-name)))
+                      (read-datum file-port)))
+
+  (syntax-transform for-each (&list &var &body)
+                    (let ((realize (lambda (&var) (begin &body))))
+                      (let ((iterate
+                              (lambda (iterate head tail)
+                                (if (nil? tail)
+                                  (realize head)
+                                  (begin
+                                    (realize head)
+                                    (iterate iterate
+                                             (car tail)
+                                             (cdr tail)))))))
+                          (iterate iterate (car &list) (cdr &list)))))
+
+  ; These procedures form the interface for interacting with ports.
+  (set-proc! read-char (port char-count) (port (quote read-char) char-count))
+  (set-proc! read-line (port) (port (quote read-line)))
+  (set-proc! write-char (port char-seq) (port (quote write-char) char-seq))
+  (set-proc! seek (port offset whence) (port (quote seek) offset whence))
+  (set-proc! tell (port) (port (quote tell)))
+  (set-proc! eof? (port) (port (quote eof?)))
+  (set-proc! close (port) (port (quote close)))
+
+  (set-proc! file-input-port (file-handle)
+             (let
+               ((write-excn (lambda ()
+                              (throw (make-exception
+                                       (quote exc-io-error)
+                                       "Can't write to input port")))))
+               (let ((read-char (lambda (char-count)
+                                  (file-read file-handle char-count)))
+                     (read-line (lambda () (file-read-line file-handle)))
+                     (write-char write-excn)
+                     (seek (lambda (offset whence)
+                             (file-seek file-handle offset whence)))
+                     (tell (lambda () (file-tell file-handle)))
+                     (eof? (lambda () (file-eof? file-handle)))
+                     (close (lambda () (file-close file-handle))))
+                 (lambda (operation args) (operation args)))))
+             
+  (set-proc! file-output-port (file-handle)
+             (let
+               ((read-excn (lambda ()
+                             (throw (make-exception
+                                      (quote exc-io-error)
+                                      "Can't read from output port")))))
+               (let ((read-char read-excn)
+                     (read-line read-excn)
+                     (write-char (lambda (char-seq)
+                                   (file-write file-handle char-seq)))
+                     (seek (lambda (offset whence)
+                             (file-seek file-handle offset whence)))
+                     (tell (lambda () (file-tell file-handle)))
+                     (eof? (lambda () (file-eof? file-handle)))
+                     (close (lambda () (file-close file-handle))))
+                 (lambda (operation args)
+                   (operation args)))))
+             
+  (set-proc! read-datum (input-port)
+             (let ((read-datum-impl
+                     (lambda (read-datum-impl acc)
+                       (let ((source (join-strings acc (read-line input-port))))
+                         (catch (parse source)
+                                (if (feof? input-port)
+                                  (throw (exception))
+                                  (read-datum-impl read-datum-impl source)))))))
+               (read-datum-impl read-datum-impl "")))
+
+  (set-proc! write-datum (output-port datum)
+             (write-char output-port (string datum)))
+
+  (set-proc! read () (read-datum (default-input-port)))
+
+  (set-proc! join-strings (strings)
+             (let
+               ((iterate
+                  (lambda (iterate head-string tail-strings acc)
+                    (if (nil? tail-strings)
+                      (str-concat acc (string head-string))
+                      (iterate iterate
+                               (car tail-strings)
+                               (cdr tail-strings)
+                               (str-concat acc (string head-string)))))))
+               (iterate iterate (string (car strings)) (cdr strings) "")))
+
+  (set-proc! display (data)
+             (if (pair? data)
+               (write-datum (default-output-port)
+                            (join-strings data))
+               (write-datum (default-output-port) data)))
+
+  (set-proc! repl ()
+             (let
+               ((read-eval-print-loop
+                  (lambda (read-eval-print-loop)
+                    (begin
+                      (display ">>> ")
+                      (let ((expr (read)))
+                        (if (or (eof? (default-input-port))
+                                (= expr (quote quit)))
+                          ()
+                          (begin
+                            (display "\n" (eval expr) "\n")
+                            (read-eval-print-loop read-eval-print-loop))))))))
+               (catch (read-eval-print-loop read-eval-print-loop)
+                      (begin
+                        (display (exception-type (exception)) ": "
+                                 (exception-message (exception)) "\n")
+                        (display (backtrace (exception-frame (exception))) "\n")
+                        (repl)))))
+
+  (set! default-input-port
+    (let ((port (file-input-port (file-stdin)))) (lambda () port)))
+
+  (set! default-output-port
+    (let ((port (file-output-port (file-stdout)))) (lambda () port))))
 

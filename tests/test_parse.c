@@ -1,6 +1,7 @@
 #include <testdrive.h>
 
 #include <via/parse.h>
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 #include <string.h>

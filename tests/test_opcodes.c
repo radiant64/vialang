@@ -1,5 +1,6 @@
 #include <testdrive.h>
 
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 static via_bool builtin_called;

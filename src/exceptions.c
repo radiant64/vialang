@@ -1,5 +1,6 @@
 #include <via/exceptions.h>
 
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 #define EXCEPT "exception-type"

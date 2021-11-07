@@ -161,6 +161,8 @@ static struct via_program* via_asm_parse_instr(
                 *dest = VIA_OP_SNAP | ((arg == end) ? rel_arg : num_arg);
             } else if (strcmp("jmp", op) == 0) {
                 *dest = VIA_OP_JMP | ((arg == end) ? rel_arg : num_arg);
+            } else if (strcmp("debug", op) == 0) {
+                *dest = VIA_OP_DEBUG | num_arg;
             } else {
                 p->status = VIA_ASM_SYNTAX_ERROR;
                 return p;

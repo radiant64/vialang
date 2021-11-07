@@ -14,6 +14,7 @@
 #define FLOAT_ARG "Function expects a float argument"
 #define ALLOC_FAIL "Host memory allocation failed"
 #define READ_ERROR "Read error"
+#define WRITE_ERROR "Write error"
 #define EXC_TYPE_ERROR "Value is not an exception"
 #define INT_REQUIRED "Integer argument required"
 #define OUT_OF_RANGE "Argument out of range"
@@ -24,4 +25,9 @@
 #define UNTERMINATED_EXPRESSION "Unterminated expression"
 #define BOOL_REQUIRED "Bool argument required"
 #define PARSE_ERROR "Failed to parse expression"
+#define INVALID_MODE "Invalid file mode"
+#define EXPECTED_HANDLE "File handle argument expected"
+#define END_OF_FILE "End of file"
+#define SYMBOL_REQUIRED "Symbol argument required"
+#define PROC_EXPECTED "Procedure argument required"
 

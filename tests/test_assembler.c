@@ -1,6 +1,7 @@
 #include <testdrive.h>
 
 #include <via/assembler.h>
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 FIXTURE(test_assembler, "Assembler")

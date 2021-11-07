@@ -1,6 +1,7 @@
 #include <via/parse.h>
 
 #include <via/alloc.h>
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 #include <stdlib.h>

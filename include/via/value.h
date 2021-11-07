@@ -22,7 +22,7 @@ enum via_type {
     VIA_V_FORM,
     VIA_V_BUILTIN,
     VIA_V_FRAME,
-    VIA_V_PORT,
+    VIA_V_HANDLE,
     VIA_V_SYMBOL
 };
 
@@ -51,10 +51,9 @@ enum via_op {
     VIA_OP_POP,
     VIA_OP_DROP,
     VIA_OP_PUSHARG,
-    VIA_OP_POPARG
+    VIA_OP_POPARG,
+    VIA_OP_DEBUG
 };
-
-struct via_port_handle;
 
 struct via_value {
     enum via_type type;
@@ -73,7 +72,7 @@ struct via_value {
             via_int v_size;
             const struct via_value** v_arr;
         };
-        const struct via_port_handle* v_port;
+        void* v_handle;
     };
     uint8_t generation;
 };

@@ -25,6 +25,7 @@ set(SOURCES
     exceptions.c
     parse.c
     port.c
+    type-utils.c
     vm.c
 )
 if(SHARED_LIBRARY)

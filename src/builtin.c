@@ -7,6 +7,7 @@
 #include <via/exceptions.h>
 #include <via/parse.h>
 #include <via/port.h>
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 #include <assert.h>
@@ -20,8 +21,8 @@
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));\
         return;\
     }\
-    const struct via_value* b = via_pop_arg(vm);\
     const struct via_value* a = via_pop_arg(vm);\
+    const struct via_value* b = via_pop_arg(vm);\
     if (\
         (a->type < VIA_V_INT || a->type > VIA_V_FLOAT)\
             || (b->type < VIA_V_INT || b->type > VIA_V_FLOAT)\
@@ -56,8 +57,8 @@
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));\
         return;\
     }\
-    const struct via_value* b = via_pop_arg(vm);\
     const struct via_value* a = via_pop_arg(vm);\
+    const struct via_value* b = via_pop_arg(vm);\
     if (\
         a->type >= VIA_V_INT && b->type >= VIA_V_INT\
             && a->type <= VIA_V_FLOAT && b->type <= VIA_V_FLOAT\
@@ -211,12 +212,7 @@ void via_f_lambda(struct via_vm* vm) {
     if (ctxt->type != VIA_V_PAIR) {
         goto throw_syntax_error;
     }
-    const struct via_value* formals = NULL;
-    const struct via_value* cursor = ctxt->v_car;
-    while (cursor) {
-        formals = via_make_pair(vm, cursor->v_car, formals);
-        cursor = cursor->v_cdr;
-    }
+    const struct via_value* formals = ctxt->v_car;
     if (ctxt->v_cdr->type != VIA_V_PAIR) {
         goto throw_syntax_error;
     }
@@ -270,6 +266,31 @@ void via_p_eval(struct via_vm* vm) {
     via_set_env(vm, via_reg_env(vm)->v_car);
     via_set_expr(vm, via_pop_arg(vm));
     via_reg_pc(vm)->v_int = eval_proc;
+}
+
+void via_p_parse(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (!args || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* source = via_pop_arg(vm);
+    if (source->type != VIA_V_STRING && source->type != VIA_V_STRINGVIEW) {
+        via_throw(vm, via_except_invalid_type(vm, STRING_REQUIRED));
+        return;
+    }
+
+    const struct via_value* result = via_parse(vm, source->v_string);
+    if (!via_parse_success(result)) {
+        via_throw(
+            vm,
+            via_except_syntax_error(vm, via_parse_ctx_cursor(result))
+        );
+        return;
+    }
+
+    vm->ret = via_parse_ctx_program(result)->v_car;
 }
 
 void via_p_throw(struct via_vm* vm) {
@@ -331,6 +352,26 @@ void via_p_context(struct via_vm* vm) {
     vm->ret = via_reg_ctxt(vm);
 }
 
+void via_p_make_exception(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (!args || !args->v_cdr || args->v_cdr->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
+        return;
+    }
+    const struct via_value* symbol = via_pop_arg(vm);
+    if (symbol->type != VIA_V_SYMBOL) {
+        via_throw(vm, via_except_invalid_type(vm, SYMBOL_REQUIRED));
+        return;
+    }
+    const struct via_value* message = via_pop_arg(vm);
+    if (message->type != VIA_V_STRING && message->type != VIA_V_STRINGVIEW) {
+        via_throw(vm, via_except_invalid_type(vm, STRING_REQUIRED));
+        return;
+    }
+
+    vm->ret = via_make_exception(vm, symbol->v_symbol, message->v_string);
+}
+
 void via_p_exception(struct via_vm* vm) {
     if (via_reg_args(vm)) {
         via_throw(vm, via_except_argument_error(vm, NO_ARGS));
@@ -383,12 +424,12 @@ void via_p_exception_frame(struct via_vm* vm) {
 
 void via_p_cons(struct via_vm* vm) {
     const struct via_value* args = via_reg_args(vm);
-    if (!args || !args->v_cdr || args->v_cdr->v_cdr) {
+    if (!args || (args->v_cdr && args->v_cdr->v_cdr)) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
-    const struct via_value* cdr = via_pop_arg(vm);
     const struct via_value* car = via_pop_arg(vm);
+    const struct via_value* cdr = via_pop_arg(vm);
     vm->ret = via_make_pair(vm, car, cdr);
 }
 
@@ -419,10 +460,7 @@ void via_p_cdr(struct via_vm* vm) {
 }
 
 void via_p_list(struct via_vm* vm) {
-    vm->ret = NULL;
-    while (via_reg_args(vm) != NULL) {
-        vm->ret = via_make_pair(vm, via_pop_arg(vm), vm->ret);
-    }
+    vm->ret = via_reg_args(vm);
 }
 
 void via_p_reverse_list(struct via_vm* vm) {
@@ -434,159 +472,6 @@ void via_p_reverse_list(struct via_vm* vm) {
     vm->ret = via_reverse_list(vm, via_pop_arg(vm));
 }
 
-void via_p_current_input_port(struct via_vm* vm) {
-    if (via_reg_args(vm) != NULL) {
-        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
-        return;
-    }
-    vm->acc = via_sym(vm, "via-int-current-input-port");
-    via_env_lookup(vm);
-}
-
-void via_p_current_output_port(struct via_vm* vm) {
-    if (via_reg_args(vm) != NULL) {
-        via_throw(vm, via_except_argument_error(vm, NO_ARGS));
-        return;
-    }
-    vm->acc = via_sym(vm, "via-int-current-output-port");
-    via_env_lookup(vm);
-}
-
-static void via_p_open_file_port(struct via_vm* vm, enum via_port_flags flags) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    const struct via_value* name = via_pop_arg(vm);
-    if (name->type != VIA_V_STRING && name->type != VIA_V_STRINGVIEW) {
-        via_throw(vm, via_except_argument_error(vm, STRING_REQUIRED));
-        return;
-    }
-
-    const struct via_port_handle* handle =
-        via_open_file_port(name->v_string, flags);
-    if (!handle) {
-        via_throw(vm, via_except_io_error(vm, FILE_OPEN_FAILED));
-        return;
-    }
-    vm->ret = via_make_port(vm, handle); 
-}
-
-void via_p_open_file_input(struct via_vm* vm) {
-    via_p_open_file_port(vm, VIA_PORT_INPUT);
-}
-
-void via_p_open_file_output(struct via_vm* vm) {
-    via_p_open_file_port(vm, VIA_PORT_OUTPUT);
-}
-
-void via_p_close_port(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    const struct via_value* port = via_pop_arg(vm);
-    if (port->type != VIA_V_PORT) {
-        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
-        return;
-    }
-
-    port->v_port->close((struct via_port_handle*) port->v_port);
-    vm->ret = port;
-}
-
-void via_p_eofp(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    const struct via_value* port = via_pop_arg(vm);
-    if (port->type != VIA_V_PORT) {
-        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
-        return;
-    }
-    
-    vm->ret = via_make_bool(vm, port->v_port->eof(port->v_port));
-}
-
-void via_p_read_datum(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
-        return;
-    }
-    const struct via_value* port_value = via_pop_arg(vm);
-    if (port_value->type != VIA_V_PORT) {
-        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
-        return;
-    }
-
-    const struct via_port_handle* port = port_value->v_port;
-
-    char buffer[256];
-    via_int open_parens = 0;
-    const struct via_value* out = via_make_string(vm, "");
-    const struct via_value* result;
-    do {
-        char* line = port->readline(port, buffer, 256);
-        if (!line && !port->eof(port)) {
-            via_throw(vm, via_except_io_error(vm, READ_ERROR));
-            return;
-        }
-        vm->regs = (struct via_value*) via_make_frame(vm);
-        via_set_args(vm, NULL);
-        via_push_arg(vm, out);
-        via_push_arg(vm, via_make_string(vm, buffer));
-        via_p_str_concat(vm);
-        vm->regs = (struct via_value*) via_reg_parn(vm);
-        out = vm->ret;
-
-        if (out->v_string[0] == '\0') {
-            // Empty datum; return nil.
-            vm->ret = NULL;
-            return;
-        }
-        result = via_parse(vm, out->v_string);
-        if (via_parse_ctx_expr_open(result) && port->eof(port)) {
-            via_throw(vm, via_except_syntax_error(vm, UNTERMINATED_EXPRESSION));
-            return;
-        }
-    } while (
-        !via_parse_ctx_program(result)
-            || (via_parse_ctx_expr_open(result) && !port->eof(port))
-    );
-    
-    if (via_parse_ctx_matched(result)) {
-        vm->ret = via_parse_ctx_program(result)->v_car;
-    } else {
-        via_throw(vm, via_except_syntax_error(vm, PARSE_ERROR));
-    }
-}
-
-void via_p_write_datum(struct via_vm* vm) {
-    const struct via_value* args = via_reg_args(vm);
-    if (args == NULL || args->v_cdr == NULL || args->v_cdr->v_cdr) {
-        via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
-        return;
-    }
-    const struct via_value* datum = via_pop_arg(vm);
-
-    const struct via_value* port_value = via_pop_arg(vm);
-    if (port_value->type != VIA_V_PORT) {
-        via_throw(vm, via_except_argument_error(vm, PORT_REQUIRED));
-        return;
-    }
-    const struct via_port_handle* port = port_value->v_port;
-
-    const struct via_value* datum_string = via_to_string(vm, datum);
-
-    port->write(port, datum_string->v_string, strlen(datum_string->v_string));
-    vm->ret = NULL;
-}
-
 void via_p_str_concat(struct via_vm* vm) {
     const struct via_value* args = via_reg_args(vm);
     if (args == NULL || !args->v_cdr || args->v_cdr->v_cdr) {
@@ -594,24 +479,14 @@ void via_p_str_concat(struct via_vm* vm) {
         return;
     }
 
-    const struct via_value* b = via_pop_arg(vm);
     const struct via_value* a = via_pop_arg(vm);
-    size_t a_len = strlen(a->v_string);
-    size_t b_len = strlen(b->v_string);
-    char* strval = via_malloc(a_len + b_len + 1);
-    if (!strval) {
-        via_throw(vm, via_except_out_of_memory(vm, ALLOC_FAIL));
-        return;
-    }
-
-    memcpy(strval, a->v_string, a_len);
-    memcpy(&strval[a_len], b->v_string, b_len + 1); // Include zero char.
-
-    struct via_value* val = via_make_value(vm);
-    val->type = VIA_V_STRING;
-    val->v_string = strval;
+    const struct via_value* b = via_pop_arg(vm);
     
-    vm->ret = val;
+    vm->ret = via_string_concat(vm, a, b);
+}
+
+void via_p_debug(struct via_vm* vm) {
+    printf("DEBUG: %s\n", via_to_string(vm, via_pop_arg(vm))->v_string);
 }
 
 void via_p_backtrace(struct via_vm* vm) {
@@ -643,8 +518,8 @@ void via_p_mod(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
-    const struct via_value* b = via_pop_arg(vm);
     const struct via_value* a = via_pop_arg(vm);
+    const struct via_value* b = via_pop_arg(vm);
     if (a->type != VIA_V_INT || b->type != VIA_V_INT) {
         via_throw(vm, via_except_invalid_type(vm, MODULO_INT));
         return;
@@ -771,7 +646,7 @@ void via_p_string(struct via_vm* vm) {
         return;
     }
 
-    vm->ret = via_to_string(vm, via_pop_arg(vm));
+    vm->ret = via_to_string_raw(vm, via_pop_arg(vm));
 }
 
 void via_p_bytep(struct via_vm* vm) {
@@ -854,7 +729,7 @@ void via_p_pairp(struct via_vm* vm) {
     }
 
     const struct via_value* arg = via_pop_arg(vm);
-    vm->ret = via_make_bool(vm, arg->type == VIA_V_PAIR);
+    vm->ret = via_make_bool(vm, arg != NULL && arg->type == VIA_V_PAIR);
 }
 
 void via_p_arrayp(struct via_vm* vm) {
@@ -978,6 +853,13 @@ void via_add_core_procedures(struct via_vm* vm) {
     );
     via_register_proc(
         vm,
+        "parse",
+        "parse-proc",
+        NULL,
+        (via_bindable) via_p_parse
+    );
+    via_register_proc(
+        vm,
         "throw",
         "throw-proc",
         NULL,
@@ -996,6 +878,13 @@ void via_add_core_procedures(struct via_vm* vm) {
         "context-proc",
         NULL,
         (via_bindable) via_p_context
+    );
+    via_register_proc(
+        vm,
+        "make-exception",
+        "make-exception-proc",
+        NULL,
+        (via_bindable) via_p_make_exception
     );
     via_register_proc(
         vm,
@@ -1038,60 +927,17 @@ void via_add_core_procedures(struct via_vm* vm) {
     );
     via_register_proc(
         vm,
-        "current-input-port",
-        "current-input-port-proc",
-        NULL,
-        (via_bindable) via_p_current_input_port
-    );
-    via_register_proc(
-        vm,
-        "current-output-port",
-        "current-output-port-proc",
-        NULL,
-        (via_bindable) via_p_current_output_port
-    );
-    via_register_proc(
-        vm,
-        "open-file-input",
-        "open-file-input-proc",
-        NULL,
-        (via_bindable) via_p_open_file_input
-    );
-    via_register_proc(
-        vm,
-        "open-file-output",
-        "open-file-output-proc",
-        NULL,
-        (via_bindable) via_p_open_file_output
-    );
-    via_register_proc(
-        vm,
-        "close-port",
-        "close-port-proc",
-        NULL,
-        (via_bindable) via_p_close_port
-    );
-    via_register_proc(vm, "eof?", "eofp-proc", NULL, (via_bindable) via_p_eofp);
-    via_register_proc(
-        vm,
-        "read-datum",
-        "read-datum-proc",
-        NULL,
-        (via_bindable) via_p_read_datum
-    );
-    via_register_proc(
-        vm,
-        "write-datum",
-        "write-datum-proc",
-        NULL,
-        (via_bindable) via_p_write_datum
-    );
-    via_register_proc(
-        vm,
         "str-concat",
         "str-concat-proc",
         NULL,
         (via_bindable) via_p_str_concat
+    );
+    via_register_proc(
+        vm,
+        "debug",
+        "debug-proc",
+        NULL,
+        (via_bindable) via_p_debug
     );
     via_register_proc(
         vm,
@@ -1210,5 +1056,7 @@ void via_add_core_procedures(struct via_vm* vm) {
         NULL,
         (via_bindable) via_p_symbolp
     );
+
+    via_add_port_procedures(vm);
 }
 
