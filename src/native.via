@@ -46,28 +46,35 @@
                                    (list proc args))))
 
   (syntax-transform let (&definitions &body)
-                      (cons (list (quote lambda)
-                                  (map car (quote &definitions))
-                                  (quote (begin &body)))
-                            (map cadr (quote &definitions))))
+                    (cons (list (quote lambda)
+                                (map car (quote &definitions))
+                                (quote (begin &body)))
+                          (map cadr (quote &definitions))))
 
-  (syntax-transform include-file (&file-name)
-                    (let
-                      ((file-port (open-file-input &file-name)))
-                      (read-datum file-port)))
+  (syntax-transform let* (&definitions &body)
+                      (list (quote let)
+                            (list (car (quote &definitions)))
+                            (if (nil? (cdr (quote &definitions)))
+                              (begin (quote &body))
+                              (list (quote let*)
+                                    (cdr (quote &definitions))
+                                    (quote &body)))))
 
   (syntax-transform for-each (&list &var &body)
-                    (let ((realize (lambda (&var) (begin &body))))
-                      (let ((iterate
-                              (lambda (iterate head tail)
-                                (if (nil? tail)
-                                  (realize head)
-                                  (begin
-                                    (realize head)
-                                    (iterate iterate
-                                             (car tail)
-                                             (cdr tail)))))))
-                          (iterate iterate (car &list) (cdr &list)))))
+                    (let* ((realize (lambda (&var) (begin &body)))
+                           (iterate (lambda (iterate head tail)
+                                      (if (nil? tail)
+                                        (realize head)
+                                        (begin
+                                          (realize head)
+                                          (iterate iterate
+                                                   (car tail)
+                                                   (cdr tail)))))))
+                          (iterate iterate (car &list) (cdr &list))))
+
+  (syntax-transform include-file (&file-name)
+                    (let ((file-port (open-file-input &file-name)))
+                      (read-datum file-port)))
 
   ; These procedures form the interface for interacting with ports.
   (set-proc! read-char (port char-count) (port (quote read-char) char-count))
@@ -79,40 +86,39 @@
   (set-proc! close (port) (port (quote close)))
 
   (set-proc! file-input-port (file-handle)
-             (let
+             (let*
                ((write-excn (lambda ()
                               (throw (make-exception
                                        (quote exc-io-error)
-                                       "Can't write to input port")))))
-               (let ((read-char (lambda (char-count)
-                                  (file-read file-handle char-count)))
-                     (read-line (lambda () (file-read-line file-handle)))
-                     (write-char write-excn)
-                     (seek (lambda (offset whence)
-                             (file-seek file-handle offset whence)))
-                     (tell (lambda () (file-tell file-handle)))
-                     (eof? (lambda () (file-eof? file-handle)))
-                     (close (lambda () (file-close file-handle))))
-                 (lambda (operation args) (operation args)))))
+                                       "Can't write to input port"))))
+                (read-char (lambda (char-count)
+                             (file-read file-handle char-count)))
+                (read-line (lambda () (file-read-line file-handle)))
+                (write-char write-excn)
+                (seek (lambda (offset whence)
+                        (file-seek file-handle offset whence)))
+                (tell (lambda () (file-tell file-handle)))
+                (eof? (lambda () (file-eof? file-handle)))
+                (close (lambda () (file-close file-handle))))
+               (lambda (operation args) (operation args))))
              
   (set-proc! file-output-port (file-handle)
-             (let
+             (let*
                ((read-excn (lambda ()
                              (throw (make-exception
                                       (quote exc-io-error)
-                                      "Can't read from output port")))))
-               (let ((read-char read-excn)
-                     (read-line read-excn)
-                     (write-char (lambda (char-seq)
-                                   (file-write file-handle char-seq)))
-                     (seek (lambda (offset whence)
-                             (file-seek file-handle offset whence)))
-                     (tell (lambda () (file-tell file-handle)))
-                     (eof? (lambda () (file-eof? file-handle)))
-                     (close (lambda () (file-close file-handle))))
-                 (lambda (operation args)
-                   (operation args)))))
-             
+                                      "Can't read from output port"))))
+                (read-char read-excn)
+                (read-line read-excn)
+                (write-char (lambda (char-seq)
+                              (file-write file-handle char-seq)))
+                (seek (lambda (offset whence)
+                        (file-seek file-handle offset whence)))
+                (tell (lambda () (file-tell file-handle)))
+                (eof? (lambda () (file-eof? file-handle)))
+                (close (lambda () (file-close file-handle))))
+               (lambda (operation args) (operation args))))
+
   (set-proc! read-datum (input-port)
              (let ((read-datum-impl
                      (lambda (read-datum-impl acc)
