@@ -128,17 +128,19 @@ static void via_expand_template(struct via_vm* vm) {
     const struct via_value* formals = form->v_car;
     const struct via_value* body = form->v_cdr->v_car;
 
+    const struct via_value* param;
     while (formals) {
         if (!ctxt) {
-            via_throw(
-                vm,
-                via_except_syntax_error(vm, FORM_INADEQUATE_ARGS)
-            );
+            param = NULL;
+        } else if (!formals->v_cdr && ctxt->v_cdr) {
+            param = ctxt;
+        } else {
+            param = ctxt->v_car;
         }
         
         body = via_expand_recurse(
             vm,
-            via_make_pair(vm, formals->v_car, ctxt->v_car),
+            via_make_pair(vm, formals->v_car, param),
             body
         );
         formals = formals->v_cdr;
