@@ -108,3 +108,10 @@ const struct via_value* via_except_end_of_file(
     return via_make_exception(vm, "exc-end-of-file", message);
 }
 
+const struct via_value* via_except_no_capability(
+    struct via_vm* vm,
+    const char* message
+) {
+    return via_make_exception(vm, "exc-no-capability", message);
+}
+

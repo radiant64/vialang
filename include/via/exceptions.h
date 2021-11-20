@@ -68,6 +68,11 @@ const struct via_value* via_except_end_of_file(
     const char* message
 );
 
+const struct via_value* via_except_no_capability(
+    struct via_vm* vm,
+    const char* message
+);
+
 #ifdef __cplusplus
 }
 #endif

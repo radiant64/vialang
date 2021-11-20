@@ -3,6 +3,7 @@
 #define NO_ARGS "Function expects no arguments"
 #define ONE_ARG "Function expects one argument"
 #define TWO_ARGS "Function expects two arguments"
+#define THREE_ARGS "Function expects three arguments"
 #define ARITH_NUMERIC "Arithmetic operation expects two numeric values"
 #define MODULO_INT "Modulo expects two integers"
 #define FORM_INADEQUATE_ARGS "Too few arguments to expression"
@@ -30,4 +31,8 @@
 #define END_OF_FILE "End of file"
 #define SYMBOL_REQUIRED "Symbol argument required"
 #define PROC_EXPECTED "Procedure argument required"
+#define INVALID_SYMBOL "Symbol not recognized in current context"
+#define NOT_SEEKABLE "Port is not seekable"
+#define FILE_ACCESS "File access error"
+#define SEEK_BOUNDS "Seek outside of file bounds"
 

@@ -8,6 +8,7 @@
 #include <via/value.h>
 #include <via/vm.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -187,9 +188,79 @@ void via_p_file_write(struct via_vm* vm) {
 }
 
 void via_p_file_seek(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (!args || !args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
+        return;
+    }
+
+    const struct via_value* handle = via_pop_arg(vm);
+    if (handle->type != VIA_V_HANDLE) {
+        via_throw(vm, via_except_invalid_type(vm, EXPECTED_HANDLE));
+        return;
+    }
+    const struct via_value* offset = via_pop_arg(vm);
+    if (offset->type != VIA_V_INT) {
+        via_throw(vm, via_except_invalid_type(vm, INT_REQUIRED));
+        return;
+    }
+    const struct via_value* whence_val = via_pop_arg(vm);
+
+    int whence = SEEK_SET;
+    if (whence_val) {
+        if (whence_val->type != VIA_V_SYMBOL) {
+            via_throw(vm, via_except_invalid_type(vm, SYMBOL_REQUIRED));
+            return;
+        }
+
+        if (whence_val == via_sym(vm, "set")) {
+            whence = SEEK_SET;
+        } else if (whence_val == via_sym(vm, "current")) {
+            whence = SEEK_CUR;
+        } else if (whence_val == via_sym(vm, "end")) {
+            whence = SEEK_END;
+        } else {
+            via_throw(vm, via_except_argument_error(vm, INVALID_SYMBOL));
+            return;
+        }
+    }
+
+    int result = fseek(handle->v_handle, offset->v_int, whence);
+    if (result != 0) {
+        if (errno == ESPIPE) {
+            via_throw(vm, via_except_no_capability(vm, NOT_SEEKABLE));
+        } if (errno == EINVAL) {
+            via_throw(vm, via_except_out_of_bounds(vm, SEEK_BOUNDS));
+        }else {
+            via_throw(vm, via_except_io_error(vm, FILE_ACCESS));
+        }
+    }
 }
 
 void via_p_file_tell(struct via_vm* vm) {
+    const struct via_value* args = via_reg_args(vm);
+    if (!args || args->v_cdr) {
+        via_throw(vm, via_except_argument_error(vm, ONE_ARG));
+        return;
+    }
+
+    const struct via_value* handle = via_pop_arg(vm);
+    if (handle->type != VIA_V_HANDLE) {
+        via_throw(vm, via_except_invalid_type(vm, EXPECTED_HANDLE));
+        return;
+    }
+
+    int offset = ftell(handle->v_handle);
+    if (offset == -1) {
+        if (errno == ESPIPE) {
+            via_throw(vm, via_except_no_capability(vm, NOT_SEEKABLE));
+        } else {
+            via_throw(vm, via_except_io_error(vm, FILE_ACCESS));
+        }
+        return;
+    }
+
+    vm->ret = via_make_int(vm, offset);
 }
 
 void via_p_file_eofp(struct via_vm* vm) {
