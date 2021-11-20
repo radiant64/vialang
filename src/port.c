@@ -103,7 +103,6 @@ void via_p_file_read(struct via_vm* vm) {
     }
 
     if (feof(handle->v_handle)) {
-        via_throw(vm, via_except_end_of_file(vm, END_OF_FILE));
         return;
     }
 
@@ -114,8 +113,12 @@ void via_p_file_read(struct via_vm* vm) {
     }
 
     size_t count = fread(dest, 1, char_count->v_int + 1, handle->v_handle);
-    if (ferror(handle->v_handle)) {
-        via_throw(vm, via_except_io_error(vm, READ_ERROR));
+    if (count != char_count->v_int) {
+        if (feof(handle->v_handle)) {
+            via_throw(vm, via_except_end_of_file(vm, END_OF_FILE));
+        } else {
+            via_throw(vm, via_except_io_error(vm, READ_ERROR));
+        }
         goto cleanup;
     }
 
@@ -140,11 +143,6 @@ void via_p_file_readline(struct via_vm* vm) {
         return;
     }
 
-    if (feof(handle->v_handle)) {
-        via_throw(vm, via_except_end_of_file(vm, END_OF_FILE));
-        return;
-    }
-
     char* dest = via_malloc(4096);
     if (!dest) {
         via_throw(vm, via_except_out_of_memory(vm, ALLOC_FAIL));
@@ -152,8 +150,12 @@ void via_p_file_readline(struct via_vm* vm) {
     }
 
     const char* buf = fgets(dest, 4096, handle->v_handle);
-    if (ferror(handle->v_handle)) {
-        via_throw(vm, via_except_io_error(vm, READ_ERROR));
+    if (!buf) {
+        if (feof(handle->v_handle)) {
+            via_throw(vm, via_except_end_of_file(vm, END_OF_FILE));
+        } else {
+            via_throw(vm, via_except_io_error(vm, READ_ERROR));
+        }
         goto cleanup;
     }
 

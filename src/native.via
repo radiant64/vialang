@@ -73,8 +73,9 @@
                           (iterate iterate (car &list) (cdr &list))))
 
   (syntax-transform include-file (&file-name)
-                    (let ((file-port (open-file-input &file-name)))
-                      (read-datum file-port)))
+                    (let ((file (file-input-port (file-open &file-name
+                                                            (quote input)))))
+                      (read-datum file)))
 
   ; These procedures form the interface for interacting with ports.
   (set-proc! read-char (port char-count) (port (quote read-char) char-count))
@@ -124,7 +125,7 @@
                      (lambda (read-datum-impl acc)
                        (let ((source (join-strings acc (read-line input-port))))
                          (catch (parse source)
-                                (if (feof? input-port)
+                                (if (eof? input-port)
                                   (throw (exception))
                                   (read-datum-impl read-datum-impl source)))))))
                (read-datum-impl read-datum-impl "")))
