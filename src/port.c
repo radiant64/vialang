@@ -18,7 +18,7 @@ void via_p_file_stdin(struct via_vm* vm) {
         return;
     }
     vm->ret = via_get(vm, "file-stdin-object");
-    
+
     if (vm->ret->type == VIA_V_UNDEFINED) {
         vm->ret = via_make_handle(vm, stdin);
         via_env_set(vm, via_sym(vm, "file-stdin-object"), vm->ret);
@@ -31,7 +31,7 @@ void via_p_file_stdout(struct via_vm* vm) {
         return;
     }
     vm->ret = via_get(vm, "file-stdin-object");
-    
+
     if (vm->ret->type == VIA_V_UNDEFINED) {
         vm->ret = via_make_handle(vm, stdout);
         via_env_set(vm, via_sym(vm, "file-stdout-object"), vm->ret);
@@ -44,7 +44,7 @@ void via_p_file_stderr(struct via_vm* vm) {
         return;
     }
     vm->ret = via_get(vm, "file-stderr-object");
-    
+
     if (vm->ret->type == VIA_V_UNDEFINED) {
         vm->ret = via_make_handle(vm, stderr);
         via_env_set(vm, via_sym(vm, "file-stderr-object"), vm->ret);
@@ -90,7 +90,7 @@ void via_p_file_read(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
-   
+
     const struct via_value* handle = via_pop_arg(vm);
     if (handle->type != VIA_V_HANDLE) {
         via_throw(vm, via_except_invalid_type(vm, EXPECTED_HANDLE));
@@ -101,7 +101,7 @@ void via_p_file_read(struct via_vm* vm) {
         via_throw(vm, via_except_invalid_type(vm, INT_REQUIRED));
         return;
     }
-    
+
     if (feof(handle->v_handle)) {
         via_throw(vm, via_except_end_of_file(vm, END_OF_FILE));
         return;
@@ -133,18 +133,18 @@ void via_p_file_readline(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-   
+
     const struct via_value* handle = via_pop_arg(vm);
     if (handle->type != VIA_V_HANDLE) {
         via_throw(vm, via_except_invalid_type(vm, EXPECTED_HANDLE));
         return;
     }
-    
+
     if (feof(handle->v_handle)) {
         via_throw(vm, via_except_end_of_file(vm, END_OF_FILE));
         return;
     }
-    
+
     char* dest = via_malloc(4096);
     if (!dest) {
         via_throw(vm, via_except_out_of_memory(vm, ALLOC_FAIL));
@@ -169,7 +169,7 @@ void via_p_file_write(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, TWO_ARGS));
         return;
     }
-   
+
     const struct via_value* handle = via_pop_arg(vm);
     if (handle->type != VIA_V_HANDLE) {
         via_throw(vm, via_except_invalid_type(vm, EXPECTED_HANDLE));
@@ -180,7 +180,7 @@ void via_p_file_write(struct via_vm* vm) {
         via_throw(vm, via_except_invalid_type(vm, STRING_REQUIRED));
         return;
     }
-    
+
     fwrite(char_seq->v_string, 1, strlen(char_seq->v_string), handle->v_handle);
     if (ferror(handle->v_handle)) {
         via_throw(vm, via_except_io_error(vm, WRITE_ERROR));
@@ -269,13 +269,13 @@ void via_p_file_eofp(struct via_vm* vm) {
         via_throw(vm, via_except_argument_error(vm, ONE_ARG));
         return;
     }
-   
+
     const struct via_value* handle = via_pop_arg(vm);
     if (handle->type != VIA_V_HANDLE) {
         via_throw(vm, via_except_invalid_type(vm, EXPECTED_HANDLE));
         return;
     }
-    
+
     vm->ret = via_make_bool(vm, feof(handle->v_handle));
 }
 
