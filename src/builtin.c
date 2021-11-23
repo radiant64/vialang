@@ -129,10 +129,8 @@ static void via_expand_template(struct via_vm* vm) {
     const struct via_value* body = form->v_cdr->v_car;
 
     const struct via_value* param;
-    while (formals) {
-        if (!ctxt) {
-            param = NULL;
-        } else if (!formals->v_cdr && ctxt->v_cdr) {
+    while (formals && ctxt) {
+        if (!formals->v_cdr && ctxt->v_cdr) {
             param = ctxt;
         } else {
             param = ctxt->v_car;

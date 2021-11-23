@@ -1,15 +1,18 @@
 ; This program reads its own source and prints it, enumerating each line. It
 ; also demonstrates terminating recursion by catching an expected exception.
 
-(let* ((source (file-input-port (file-open (@main-file) (quote input))))
+(let* ((source (file-input-port (file-open &current-file (quote input))))
        (print-lines-rec (lambda (line-number self)
                           (begin
                             (display (string line-number)
                                      ": "
                                      (read-line source))
                             (self (+ line-number 1) self)))))
-  (catch (print-lines-rec 1 print-lines-rec)
-         (if (= (exception-type (exception)) (quote exc-end-of-file))
-           (close source)
-           (throw (exception))))))
+  (if (<> &current-file (@main-file))
+    (throw (make-exception (quote exc-not-main)
+                           "Can only by run as a standalone program"))
+    (catch (print-lines-rec 1 print-lines-rec)
+           (if (= (exception-type (exception)) (quote exc-end-of-file))
+             (close source)
+             (throw (exception))))))
 

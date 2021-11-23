@@ -2,6 +2,9 @@
   (syntax-transform set-proc! (&proc-name &proc-formals &proc-body)
                     (quote (set! &proc-name (lambda &proc-formals &proc-body))))
 
+  ; Main file will be empty by default.
+  (set-proc! @main-file () "")
+
   (set-proc! map (map-proc map-list)
              (if (nil? (cdr map-list))
                (list (map-proc (car map-list)))
@@ -75,7 +78,12 @@
   (syntax-transform include-file (&file-name)
                     (let ((file (file-input-port (file-open &file-name
                                                             (quote input)))))
-                      (read-datum file)))
+                      (begin
+                        (eval (list (quote syntax-transform)
+                                    (quote eval-file)
+                                    (list (quote &current-file))
+                                    (read-datum file)))
+                        (eval-file &file-name))))
 
   ; These procedures form the interface for interacting with ports.
   (set-proc! read-char (port char-count) (port (quote read-char) char-count))
@@ -160,18 +168,21 @@
                     (begin
                       (display ">>> ")
                       (let ((expr (read)))
-                        (if (or (eof? (default-input-port))
-                                (= expr (quote quit)))
+                        (if (= expr (quote quit))
                           ()
                           (begin
                             (display "\n" (eval expr) "\n")
                             (read-eval-print-loop read-eval-print-loop))))))))
                (catch (read-eval-print-loop read-eval-print-loop)
-                      (begin
-                        (display (exception-type (exception)) ": "
-                                 (exception-message (exception)) "\n")
-                        (display (backtrace (exception-frame (exception))) "\n")
-                        (repl)))))
+                      (if (= (exception-type (exception))
+                             (quote exc-end-of-file))
+                        ()
+                        (begin
+                          (display (exception-type (exception)) ": "
+                                   (exception-message (exception)) "\n")
+                          (display (backtrace (exception-frame (exception)))
+                                   "\n")
+                          (repl))))))
 
   (set! default-input-port
     (let ((port (file-input-port (file-stdin)))) (lambda () port)))
