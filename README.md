@@ -96,26 +96,6 @@ cmake .. -DDISABLE_CPP=1
 
 Working pre-alpha. API and implementation subject to breaking changes.
 
-## Example Program
+## Example Code
 
-```
-; Ye Olde Example Programme
-
-; Sequences are explicit on all levels.
-(begin
-  (set-proc! factorial (number)
-             (begin
-               ; Iteration is implemented through a recursive tail call.
-               (set-proc! factorial-impl (number acc)
-                          (if (= number 1)
-                              acc
-                              (factorial-impl (- number 1) (* acc number)))))
-               (factorial-impl number 1))
-  (display (factorial 5)))
-```
-
-Output:
-```
-120
-```
-
+See the [examples](examples) folder.
