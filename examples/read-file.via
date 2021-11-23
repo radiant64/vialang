@@ -1,7 +1,7 @@
 ; This program reads its own source and prints it, enumerating each line. It
 ; also demonstrates terminating recursion by catching an expected exception.
 
-(let* ((source (file-input-port (file-open "read-file.via" (quote input))))
+(let* ((source (file-input-port (file-open (@main-file) (quote input))))
        (print-lines-rec (lambda (line-number self)
                           (begin
                             (display (string line-number)

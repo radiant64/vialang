@@ -5,6 +5,9 @@
 
 #include <stdio.h>
 
+#define EVAL_FILE_FUNC\
+    "(let ((@main-file (lambda () \"%1$s\"))) (include-file \"%1$s\"))"
+
 void print_usage(const char* binary) {
     fprintf(stdout, "Usage:\n\n\t%s [SCRIPTFILE]\n\n", binary);
     fprintf(
@@ -16,14 +19,14 @@ void print_usage(const char* binary) {
 int dispatch_execution(int argc, char** argv) {
     struct via_vm* vm = via_create_vm();
 
-    char buf[512];
+    char buf[1024];
     switch (argc) {
     case 1:
         fprintf(stdout, "Via " VIA_VERSION "\n\n");
         via_set_expr(vm, via_parse_ctx_program(via_parse(vm, "(repl)"))->v_car);
         break;
     case 2:
-        snprintf(buf, 511, "(include-file \"%s\")", argv[1]);
+        snprintf(buf, 1023, EVAL_FILE_FUNC, argv[1]);
         via_set_expr(vm, via_parse_ctx_program(via_parse(vm, buf))->v_car);
         break;
     default:
