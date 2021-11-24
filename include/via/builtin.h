@@ -10,9 +10,11 @@ struct via_vm;
 
 void via_f_syntax_transform(struct via_vm* vm);
 
+void via_f_syntax_expand(struct via_vm* vm);
+
 void via_f_quote(struct via_vm* vm);
 
-void via_f_yield(struct via_vm* vm);
+void via_f_continuation(struct via_vm* vm);
 
 void via_f_lambda(struct via_vm* vm);
 

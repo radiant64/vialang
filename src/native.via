@@ -10,6 +10,16 @@
                (list (map-proc (car map-list)))
                (cons (map-proc (car map-list)) (map map-proc (cdr map-list)))))
 
+  (set-proc! append (target element)
+             (if (nil? target)
+               (list element)
+               (cons (car target) (append (cdr target) element))))
+
+  (set-proc! concat (a b)
+             (if (nil? a)
+               b
+               (cons (car a) (concat (cdr a) b))))
+
   (set-proc! cadr (pair)
              (car (cdr pair)))
 
@@ -40,40 +50,40 @@
   (set-proc! cddr (pair)
              (cdr (cdr pair)))
 
-  (set-proc! make-lambda (parameters body)
-             (list (quote lambda) parameters body))
-
-  (set-proc! make-application (proc args)
-             (list (quote apply) (if (pair? args)
-                                   (cons proc args)
-                                   (list proc args))))
-
   (syntax-transform let (&definitions &body)
                     (cons (list (quote lambda)
                                 (map car (quote &definitions))
-                                (quote (begin &body)))
+                                (list (quote begin) (quote &body)))
                           (map cadr (quote &definitions))))
 
   (syntax-transform let* (&definitions &body)
                     (list (quote let)
                           (list (car (quote &definitions)))
                           (if (nil? (cdr (quote &definitions)))
-                            (begin (quote &body))
+                            (list (quote begin) (quote &body))
                             (list (quote let*)
                                   (cdr (quote &definitions))
                                   (quote &body)))))
 
+  (syntax-transform letrec (&definitions &body)
+                    (let ((make-set! (lambda (definition)
+                                       (list (quote set!)
+                                             (car definition)
+                                             (cadr definition)))))
+                      (cons (quote begin)
+                            (append (map make-set! (quote &definitions))
+                                    (quote &body)))))
+
   (syntax-transform for-each (&list &var &body)
-                    (let* ((realize (lambda (&var) (begin &body)))
-                           (iterate (lambda (iterate head tail)
+                    (letrec ((realize (lambda (&var) (begin &body)))
+                             (iterate (lambda (head tail)
                                       (if (nil? tail)
                                         (realize head)
                                         (begin
                                           (realize head)
-                                          (iterate iterate
-                                                   (car tail)
+                                          (iterate (car tail)
                                                    (cdr tail)))))))
-                          (iterate iterate (car &list) (cdr &list))))
+                      (iterate (car &list) (cdr &list))))
 
   (syntax-transform include-file (&file-name)
                     (let ((file (file-input-port (file-open &file-name

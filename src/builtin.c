@@ -114,14 +114,6 @@ static const struct via_value* via_expand_recurse(
 }
 
 static void via_expand_template(struct via_vm* vm) {
-    // TODO: Improve address caching.
-    static struct via_vm* cached_instance = NULL;
-    static via_int eval_transform_proc = -1;
-    if (vm != cached_instance) {
-        cached_instance = vm;
-        eval_transform_proc = via_asm_label_lookup(vm, "eval-transform-proc");
-    }
-
     const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
     const struct via_value* form = via_reg_ctxt(vm)->v_car;
 
@@ -135,7 +127,7 @@ static void via_expand_template(struct via_vm* vm) {
         } else {
             param = ctxt->v_car;
         }
-        
+
         body = via_expand_recurse(
             vm,
             via_make_pair(vm, formals->v_car, param),
@@ -145,17 +137,34 @@ static void via_expand_template(struct via_vm* vm) {
         ctxt = ctxt->v_cdr;
     }
     
-    via_set_expr(vm, body);
+    vm->ret = body;
+}
+
+static void via_transform_template(struct via_vm* vm) {
+    // TODO: Improve address caching.
+    static struct via_vm* cached_instance = NULL;
+    static via_int eval_transform_proc = -1;
+    if (vm != cached_instance) {
+        cached_instance = vm;
+        eval_transform_proc = via_asm_label_lookup(vm, "eval-transform-proc");
+    }
+
+    via_expand_template(vm);
+
+    via_set_expr(vm, vm->ret);
     via_reg_pc(vm)->v_int = eval_transform_proc;
 }
 
 void via_f_syntax_transform(struct via_vm* vm) {
     // TODO: Improve address caching.
     static struct via_vm* cached_instance = NULL;
-    static via_int expand_template_proc = -1;
+    static via_int transform_template_proc = -1;
     if (vm != cached_instance) {
         cached_instance = vm;
-        expand_template_proc = via_asm_label_lookup(vm, "expand-template-proc");
+        transform_template_proc = via_asm_label_lookup(
+            vm,
+            "transform-template-proc"
+        );
     }
 
     const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
@@ -175,9 +184,17 @@ void via_f_syntax_transform(struct via_vm* vm) {
             vm,
             formals,
             body,
-            via_make_builtin(vm, expand_template_proc)
+            via_make_builtin(vm, transform_template_proc)
         )
     );
+}
+
+void via_f_syntax_expand(struct via_vm* vm) {
+    const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
+    const struct via_value* form = via_env_lookup_nothrow(vm, ctxt->v_car);
+
+    via_set_ctxt(vm, via_make_pair(vm, form, ctxt->v_cdr));
+    via_expand_template(vm);
 }
 
 void via_f_quote(struct via_vm* vm) {
@@ -189,18 +206,13 @@ void via_f_quote(struct via_vm* vm) {
     vm->ret = ctxt->v_car;
 }
 
-void via_f_yield(struct via_vm* vm) {
+void via_f_continuation(struct via_vm* vm) {
     const struct via_value* ctxt = via_reg_ctxt(vm)->v_cdr;
     if (ctxt) {
         via_throw(vm, via_except_syntax_error(vm, ""));
         return;
     }
-//    struct via_value* retval = via_make_pair(vm, vm->ret, vm->regs);
-
-    vm->acc = via_reg_parn(vm);
-    via_assume_frame(vm);
-    
-    vm->ret = via_make_pair(vm, vm->ret, via_make_frame(vm));
+    vm->ret = via_make_frame(vm);
 }
 
 void via_f_lambda(struct via_vm* vm) {
@@ -800,6 +812,11 @@ void via_add_core_forms(struct via_vm* vm) {
     via_register_native_form(vm, "set!", "set-proc", NULL);
 
     via_bind(vm, "expand-template-proc", (via_bindable) via_expand_template); 
+    via_bind(
+        vm,
+        "transform-template-proc",
+        (via_bindable) via_transform_template
+    ); 
     via_register_form(
         vm,
         "syntax-transform",
@@ -815,6 +832,19 @@ void via_add_core_forms(struct via_vm* vm) {
     );
     via_register_form(
         vm,
+        "syntax-expand",
+        "syntax-expand-proc",
+        via_list(
+            vm,
+            via_sym(vm, "&syntax-symbol"),
+            via_sym(vm, "&syntax-formals"),
+            via_sym(vm, "&syntax-template"),
+            NULL
+        ),
+        (via_bindable) via_f_syntax_expand
+    );
+    via_register_form(
+        vm,
         "quote",
         "quote-proc",
         NULL,
@@ -822,10 +852,10 @@ void via_add_core_forms(struct via_vm* vm) {
     );
     via_register_form(
         vm,
-        "yield",
-        "yield-proc",
+        "continuation",
+        "continuation-proc",
         NULL,
-        (via_bindable) via_f_yield
+        (via_bindable) via_f_continuation
     );
     via_register_form(
         vm,
