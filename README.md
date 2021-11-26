@@ -2,6 +2,9 @@
 
 Scheme-inspired language with an embeddable interpreter. Work in progress!
 
+Focus at this stage is on features and usability. "Via" means "road" in Latin,
+and there is yet some way to go. But it is fully servicable!
+
 ## Features
 
 ### Core Language Features
