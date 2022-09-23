@@ -139,14 +139,15 @@
                (lambda (operation args) (operation args))))
 
   (set-proc! read-datum (input-port)
-             (let ((read-datum-impl
-                     (lambda (read-datum-impl acc)
-                       (let ((source (join-strings acc (read-line input-port))))
-                         (catch (parse source)
-                                (if (eof? input-port)
-                                  (throw (exception))
-                                  (read-datum-impl read-datum-impl source)))))))
-               (read-datum-impl read-datum-impl "")))
+             (letrec
+               ((read-datum-impl
+                 (lambda (acc)
+                   (let ((source (join-strings acc (read-line input-port))))
+                        (catch (parse source)
+                               (if (eof? input-port)
+                                 (throw (exception))
+                                 (read-datum-impl source)))))))
+               (read-datum-impl "")))
 
   (set-proc! write-datum (output-port datum)
              (write-char output-port (string datum)))
