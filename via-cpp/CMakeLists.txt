@@ -7,6 +7,7 @@ target_include_directories(via-cpp INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+target_link_libraries(via-cpp INTERFACE via)
 target_compile_features(via-cpp INTERFACE cxx_std_17)
 
 configure_file(via-cpp.pc.in via-cpp.pc @ONLY)
@@ -19,4 +20,6 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.h"
 )
+
+add_subdirectory(example)
 

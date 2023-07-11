@@ -1,11 +1,13 @@
 #pragma once
 
 #include <via/parse.h>
+#include <via/type-utils.h>
 #include <via/vm.h>
 
 #include <any>
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 
 namespace via {
