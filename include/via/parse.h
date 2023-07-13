@@ -11,6 +11,8 @@ struct via_vm;
 
 const char* via_parse_ctx_cursor(const struct via_value* ctx);
 
+const char* via_parse_ctx_source(const struct via_value* ctx);
+
 const struct via_value* via_parse_ctx_program(const struct via_value* ctx);
 
 via_bool via_parse_ctx_matched(const struct via_value* ctx);

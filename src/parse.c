@@ -16,16 +16,20 @@ const char* via_parse_ctx_cursor(const struct via_value* ctx) {
     return ctx->v_car->v_string;
 }
 
+const char* via_parse_ctx_source(const struct via_value* ctx) {
+    return ctx->v_cdr->v_car->v_string;
+}
+
 const struct via_value* via_parse_ctx_program(const struct via_value* ctx) {
-    return ctx->v_cdr->v_car;
+    return ctx->v_cdr->v_cdr->v_car;
 }
 
 via_bool via_parse_ctx_matched(const struct via_value* ctx) {
-    return ctx->v_cdr->v_cdr->v_car->v_bool;
+    return ctx->v_cdr->v_cdr->v_cdr->v_car->v_bool;
 }
 
 via_bool via_parse_ctx_expr_open(const struct via_value* ctx) {
-    return ctx->v_cdr->v_cdr->v_cdr->v_car->v_bool;
+    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_car->v_bool;
 }
 
 via_bool via_parse_success(const struct via_value* ctx) {
@@ -33,7 +37,7 @@ via_bool via_parse_success(const struct via_value* ctx) {
 }
 
 const struct via_value* via_parse_ctx_parent(const struct via_value* ctx) {
-    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_car;
+    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_cdr->v_car;
 }
 
 const struct via_value* via_create_parse_ctx(
@@ -49,17 +53,21 @@ const struct via_value* via_create_parse_ctx(
         via_make_stringview(vm, cursor),
         via_make_pair(
             vm,
-            program,
+            via_make_stringview(vm, cursor),
             via_make_pair(
                 vm,
-                via_make_bool(vm, matched),
+                program,
                 via_make_pair(
                     vm,
-                    via_make_bool(vm, expr_open),
+                    via_make_bool(vm, matched),
                     via_make_pair(
                         vm,
-                        parent,
-                        NULL
+                        via_make_bool(vm, expr_open),
+                        via_make_pair(
+                            vm,
+                            parent,
+                            NULL
+                        )
                     )
                 )
             )
@@ -130,8 +138,9 @@ const struct via_value* via_parse_whitespace(
         c++;
     }
 
-    // Comments are valid whitespace.
-    if (*c == ';') {
+    // Comments are valid whitespace. If first char in source is '#', also
+    // treat line as a comment (to support hashbang notation).
+    if (*c == ';' || (c == via_parse_ctx_source(context) && *c == '#')) {
         while (*c && *c != '\r' && *c != '\n') {
             c++;
         }
