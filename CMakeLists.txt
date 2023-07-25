@@ -7,7 +7,7 @@ making a new subfolder called \"build/\" is recommended)."
 endif()
 
 project(via
-    VERSION 0.1.0-alpha
+    VERSION 0.1.0
     DESCRIPTION "Embeddable Via interpreter"
 )
 include(CTest)
