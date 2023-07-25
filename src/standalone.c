@@ -23,11 +23,17 @@ int dispatch_execution(int argc, char** argv) {
     switch (argc) {
     case 1:
         fprintf(stdout, "Via " VIA_VERSION "\n\n");
-        via_set_expr(vm, via_parse_ctx_program(via_parse(vm, "(repl)"))->v_car);
-        break;
+        via_set_expr(
+            vm,
+            via_parse_ctx_program(via_parse(vm, "(repl)", NULL))->v_car
+        );
+    break;
     case 2:
         snprintf(buf, 1023, EVAL_FILE_FUNC, argv[1]);
-        via_set_expr(vm, via_parse_ctx_program(via_parse(vm, buf))->v_car);
+        via_set_expr(
+            vm,
+            via_parse_ctx_program(via_parse(vm, buf, argv[1]))->v_car
+        );
         break;
     default:
         print_usage(argv[0]);

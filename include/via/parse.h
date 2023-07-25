@@ -19,9 +19,15 @@ via_bool via_parse_ctx_matched(const struct via_value* ctx);
 
 via_bool via_parse_ctx_expr_open(const struct via_value* ctx);
 
+const char* via_parse_ctx_file_path(const struct via_value* ctx);
+
 via_bool via_parse_success(const struct via_value* ctx);
 
-const struct via_value* via_parse(struct via_vm* vm, const char* source);
+const struct via_value* via_parse(
+    struct via_vm* vm,
+    const char* source,
+    const char* file_path
+);
 
 #ifdef __cplusplus
 }

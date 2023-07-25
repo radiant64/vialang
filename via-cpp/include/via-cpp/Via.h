@@ -113,7 +113,7 @@ namespace via {
                         std::make_any<decltype(func)>(func)));
 
             via_register_proc_context(
-                    vm.get(), name.c_str(), label.c_str(), NULL,
+                    vm.get(), name.c_str(), label.c_str(), nullptr,
                     [](void* data) {
                         auto& [self, anyFunc] = *reinterpret_cast<Bound*>(data);
                         auto f = std::any_cast<decltype(func)>(anyFunc);
@@ -131,7 +131,7 @@ namespace via {
                         std::make_any<decltype(func)>(func)));
 
             via_register_form_context(
-                    vm.get(), name.c_str(), label.c_str(), NULL,
+                    vm.get(), name.c_str(), label.c_str(), nullptr,
                     [](void* data) {
                         auto& [self, anyFunc] = *reinterpret_cast<Bound*>(data);
                         auto f = std::any_cast<decltype(func)>(anyFunc);
@@ -142,7 +142,7 @@ namespace via {
         Value run(const std::string& program)
         {
             via_set_expr(vm.get(), via_parse_ctx_program(
-                        via_parse(vm.get(), program.c_str()))->v_car);
+                        via_parse(vm.get(), program.c_str(), nullptr))->v_car);
             return via_run_eval(vm.get());
         }
 

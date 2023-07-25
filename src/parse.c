@@ -32,12 +32,16 @@ via_bool via_parse_ctx_expr_open(const struct via_value* ctx) {
     return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_car->v_bool;
 }
 
+const char* via_parse_ctx_file_path(const struct via_value* ctx) {
+    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_cdr->v_car->v_string;
+}
+
 via_bool via_parse_success(const struct via_value* ctx) {
     return via_parse_ctx_matched(ctx) && !via_parse_ctx_expr_open(ctx);
 }
 
 const struct via_value* via_parse_ctx_parent(const struct via_value* ctx) {
-    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_cdr->v_car;
+    return ctx->v_cdr->v_cdr->v_cdr->v_cdr->v_cdr->v_cdr->v_car;
 }
 
 const struct via_value* via_create_parse_ctx(
@@ -46,7 +50,8 @@ const struct via_value* via_create_parse_ctx(
     const struct via_value* program,
     const struct via_value* parent,
     via_bool matched,
-    via_bool expr_open
+    via_bool expr_open,
+    const char* file_path
 ) {
     return via_make_pair(
         vm,
@@ -65,8 +70,12 @@ const struct via_value* via_create_parse_ctx(
                         via_make_bool(vm, expr_open),
                         via_make_pair(
                             vm,
-                            parent,
-                            NULL
+                            via_make_stringview(vm, file_path),
+                            via_make_pair(
+                                vm,
+                                parent,
+                                NULL
+                            )
                         )
                     )
                 )
@@ -86,7 +95,8 @@ const struct via_value* via_parse_ctx_make_unmatched(
         via_parse_ctx_program(ctx),
         via_parse_ctx_parent(ctx),
         false,
-        expr_open
+        expr_open,
+        via_parse_ctx_file_path(ctx)
     );
 }
 
@@ -104,7 +114,8 @@ const struct via_value* via_parse_ctx_program_add(
             via_make_pair(vm, val, NULL),
             via_parse_ctx_parent(ctx),
             true,
-            false
+            false,
+            via_parse_ctx_file_path(ctx)
         );
     }
 
@@ -120,7 +131,8 @@ const struct via_value* via_parse_ctx_program_add(
         via_parse_ctx_program(ctx),
         via_parse_ctx_parent(ctx),
         true,
-        false
+        false,
+        via_parse_ctx_file_path(ctx)
     );
 }
 
@@ -138,9 +150,17 @@ const struct via_value* via_parse_whitespace(
         c++;
     }
 
-    // Comments are valid whitespace. If first char in source is '#', also
-    // treat line as a comment (to support hashbang notation).
-    if (*c == ';' || (c == via_parse_ctx_source(context) && *c == '#')) {
+    // Comments are valid whitespace. If first char in source is '#' and
+    // parsing from a file, also treat line as a comment (to support hashbang
+    // notation).
+    if (
+        *c == ';'
+        || (
+            c == via_parse_ctx_source(context) 
+            && via_parse_ctx_file_path(context)
+            && *c == '#'
+        )
+    ) {
         while (*c && *c != '\r' && *c != '\n') {
             c++;
         }
@@ -155,7 +175,8 @@ const struct via_value* via_parse_whitespace(
                     via_parse_ctx_program(context),
                     via_parse_ctx_parent(context),
                     true,
-                    true
+                    true,
+                    via_parse_ctx_file_path(context)
                 )
             );
         }
@@ -167,7 +188,8 @@ const struct via_value* via_parse_whitespace(
         via_parse_ctx_program(context),
         via_parse_ctx_parent(context),
         true,
-        true
+        true,
+        via_parse_ctx_file_path(context)
     ); 
 }
 
@@ -384,7 +406,8 @@ const struct via_value* via_parse_oparen(
             via_parse_ctx_parent(context)
         ),
         true,
-        true
+        true,
+        via_parse_ctx_file_path(context)
     );
 }
 
@@ -403,7 +426,8 @@ const struct via_value* via_parse_cparen(
         via_parse_ctx_parent(context)->v_car,
         via_parse_ctx_parent(context)->v_cdr,
         true,
-        false
+        false,
+        via_parse_ctx_file_path(context)
     );
     
     return via_parse_ctx_program_add(
@@ -454,14 +478,19 @@ const struct via_value* via_parse_expr(
     return context;
 }
 
-const struct via_value* via_parse(struct via_vm* vm, const char* source) {
+const struct via_value* via_parse(
+    struct via_vm* vm,
+    const char* source,
+    const char* file_path
+) {
     const struct via_value* context = via_create_parse_ctx(
         vm,
         source,
         NULL,
         NULL,
         true,
-        true
+        true,
+        file_path
     );
 
     return via_parse_expr(vm, context);

@@ -15,7 +15,7 @@ FIXTURE(test_programs, "Programs")
 
     SECTION("Quoted symbol")
         const char* source = "(quote test-symbol)";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -30,7 +30,7 @@ FIXTURE(test_programs, "Programs")
     
     SECTION("Sequence")
         const char* source = "(begin (context) 12)";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -45,7 +45,7 @@ FIXTURE(test_programs, "Programs")
 
     SECTION("Conditional")
         const char* source = "(if #t (if #f 12 34) 56)";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -60,7 +60,7 @@ FIXTURE(test_programs, "Programs")
 
     SECTION("Arithmetics")
         const char* source = "(/ (* (- (+ 1.0 1) 1) 6) 2)";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -76,7 +76,7 @@ FIXTURE(test_programs, "Programs")
 
     SECTION("Trigonometrics + power of")
         const char* source = "(^ (sin 1.0) (cos 1.0))";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -103,7 +103,7 @@ FIXTURE(test_programs, "Programs")
             "                                  (fact-impl (- n 1) (* acc n)))))"
             "                (fact-impl n 1))))"
             " (factorial 5))";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -119,7 +119,7 @@ FIXTURE(test_programs, "Programs")
     SECTION("Arithmetics type error")
         const char* source = "(+ 43 \"test\")";
 
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -135,7 +135,7 @@ FIXTURE(test_programs, "Programs")
     SECTION("And/or")
         const char* source = "(or (and #f (+)) #t)";
 
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -153,7 +153,7 @@ FIXTURE(test_programs, "Programs")
         const char* source =
         "(let ((x 5) (y 10))"
         "  (* x y))";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -171,7 +171,7 @@ FIXTURE(test_programs, "Programs")
         const char* source =
         "(let* ((x 5) (y (+ x 10)))"
         "  (* x y))";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -189,7 +189,7 @@ FIXTURE(test_programs, "Programs")
         const char* source = "(for-each (cddr (list 1 2 3 4 5)) num "
                                        "(begin (display num \"\\n\")"
                                        "       (+ num 1)))";
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -212,7 +212,7 @@ FIXTURE(test_programs, "Programs")
         "                 (iterate (- num 1))))"
         "  (iterate 1000))";
 
-        result = via_parse(vm, source);
+        result = via_parse(vm, source, NULL);
 
         REQUIRE(result);
 
@@ -229,7 +229,7 @@ FIXTURE(test_programs, "Programs")
     SECTION("Numeric type conversions")
         SECTION("Integers")
             const char* source = "(list (int 1.0) (int #t) (int \"0x01\"))";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 

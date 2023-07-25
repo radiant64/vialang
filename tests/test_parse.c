@@ -16,7 +16,7 @@ FIXTURE(test_parsing, "Parsing")
     SECTION("Literals")
         SECTION("int")
             const char* source = "123";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 
@@ -27,7 +27,7 @@ FIXTURE(test_parsing, "Parsing")
         
         SECTION("Negative int")
             const char* source = "-123";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 
@@ -38,7 +38,7 @@ FIXTURE(test_parsing, "Parsing")
         
         SECTION("float")
             const char* source = ".013";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 
@@ -49,7 +49,7 @@ FIXTURE(test_parsing, "Parsing")
         
         SECTION("Negative float")
             const char* source = "-.013";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 
@@ -61,7 +61,7 @@ FIXTURE(test_parsing, "Parsing")
         SECTION("bool")
             SECTION("True")
                 const char* source = "#t";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -72,7 +72,7 @@ FIXTURE(test_parsing, "Parsing")
             
             SECTION("False")
                 const char* source = "#f";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -83,7 +83,7 @@ FIXTURE(test_parsing, "Parsing")
             
             SECTION("Invalid 1")
                 const char* source = "#x";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -93,7 +93,7 @@ FIXTURE(test_parsing, "Parsing")
 
             SECTION("Invalid 2")
                 const char* source = "#foo";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -105,7 +105,7 @@ FIXTURE(test_parsing, "Parsing")
         SECTION("String")
             SECTION("Simple") 
                 const char* source = "\"test\"";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -116,7 +116,7 @@ FIXTURE(test_parsing, "Parsing")
 
             SECTION("Escaped") 
                 const char* source = "\"test\\ntest\"";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -128,7 +128,7 @@ FIXTURE(test_parsing, "Parsing")
 
             SECTION("Invalid") 
                 const char* source = "\"test";
-                result = via_parse(vm, source);
+                result = via_parse(vm, source, NULL);
 
                 REQUIRE(result);
 
@@ -139,7 +139,7 @@ FIXTURE(test_parsing, "Parsing")
 
         SECTION("Symbol")
             const char* source = "test";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 
@@ -152,7 +152,7 @@ FIXTURE(test_parsing, "Parsing")
     SECTION("Compound")
         SECTION("Simple")
             const char* source = "(test)";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 
@@ -164,7 +164,7 @@ FIXTURE(test_parsing, "Parsing")
         END_SECTION
         SECTION("Complex")
             const char* source = "(test (foo bar) baz)";
-            result = via_parse(vm, source);
+            result = via_parse(vm, source, NULL);
 
             REQUIRE(result);
 

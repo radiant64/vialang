@@ -50,6 +50,16 @@
   (set-proc! cddr (pair)
              (cdr (cdr pair)))
 
+  (syntax-transform cond (&clauses)
+    (letrec ((cond-iter
+       (lambda (clause clause-tail)
+         (if (eval (car clause))
+             (cadr clause)
+             (if (nil? clause-tail)
+                 (list quote ())
+                 (cond-iter (car clause-tail) (cdr clause-tail)))))))
+      (cond-iter (car (quote &clauses)) (cdr (quote &clauses)))))
+
   (syntax-transform let (&definitions &body)
                     (cons (list (quote lambda)
                                 (map car (quote &definitions))
@@ -84,6 +94,17 @@
                                           (iterate (car tail)
                                                    (cdr tail)))))))
                       (iterate (car &list) (cdr &list))))
+
+  (set-proc! reduce (reduce-proc reduce-list init)
+                    (letrec ((reduce-iter
+                               (lambda (r-proc r-list acc)
+                                       (if (nil? (cdr r-list))
+                                           (r-proc acc (car r-list))
+                                           (reduce-iter
+                                             r-proc
+                                             (cdr r-list)
+                                             (r-proc acc (car r-list)))))))
+                            (reduce-iter r-proc r-list init)))
 
   (syntax-transform include-file (&file-name)
                     (let ((file (file-input-port (file-open &file-name
