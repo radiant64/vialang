@@ -294,7 +294,11 @@ void via_p_parse(struct via_vm* vm) {
     }
 
     const struct via_value* file_path = via_pop_arg(vm);
-    const struct via_value* result = via_parse(vm, source->v_string, file_path);
+    const struct via_value* result = via_parse(
+        vm,
+        source->v_string,
+        file_path->v_string
+    );
     if (!via_parse_success(result)) {
         via_throw(
             vm,
