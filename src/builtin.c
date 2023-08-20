@@ -297,7 +297,7 @@ void via_p_parse(struct via_vm* vm) {
     const struct via_value* result = via_parse(
         vm,
         source->v_string,
-        file_path->v_string
+        file_path ? file_path->v_string : NULL
     );
     if (!via_parse_success(result)) {
         via_throw(
